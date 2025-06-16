@@ -1,9 +1,9 @@
 // Service Worker for PWA functionality
-const CACHE_NAME = 'cloud-terminal-v3';
+const CACHE_NAME = 'cloud-terminal-v4';
 const urlsToCache = [
   '/manifest.json',
-  '/icon.svg'
-  // Three.js loaded from CDN, not cached due to CORS
+  '/icon.svg',
+  '/js/three.min.js'
 ];
 
 // Install event - cache resources

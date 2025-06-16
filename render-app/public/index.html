@@ -273,7 +273,10 @@
             }
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.161.0/three.min.js"></script>
+    <script type="module">
+        import * as THREE from '/js/three.min.js';
+        window.THREE = THREE;
+    </script>
 </head>
 <body>
     <div class="loading-screen" id="loadingScreen">
