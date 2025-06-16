@@ -257,7 +257,12 @@
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             
-            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer = new THREE.WebGLRenderer({ 
+                alpha: true, 
+                antialias: true,
+                powerPreference: "high-performance",
+                stencil: false
+            });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             document.getElementById('three-bg').appendChild(renderer.domElement);
@@ -275,8 +280,21 @@
             
             camera.position.z = 3;
 
-            function animate() {
+            // Optimized animation loop
+            let lastTime = 0;
+            const targetFPS = 60;
+            const frameDuration = 1000 / targetFPS;
+            
+            function animate(currentTime) {
                 requestAnimationFrame(animate);
+                
+                // Frame rate limiting
+                if (!currentTime) currentTime = performance.now();
+                const deltaTime = currentTime - lastTime;
+                if (deltaTime < frameDuration) return;
+                
+                lastTime = currentTime - (deltaTime % frameDuration);
+                
                 mesh.rotation.x += 0.001;
                 mesh.rotation.y += 0.002;
                 renderer.render(scene, camera);

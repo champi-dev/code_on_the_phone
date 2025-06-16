@@ -534,18 +534,26 @@
             1000
           );
 
-          renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+          renderer = new THREE.WebGLRenderer({ 
+            alpha: true, 
+            antialias: true,
+            powerPreference: "high-performance",
+            stencil: false,
+            depth: true
+          });
           renderer.setSize(window.innerWidth, window.innerHeight);
           renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
           renderer.toneMapping = THREE.ACESFilmicToneMapping;
           renderer.toneMappingExposure = 1.2;
+          renderer.shadowMap.enabled = false; // Disable shadows for performance
+          renderer.sortObjects = false; // Disable automatic sorting for performance
           document
             .getElementById("three-container")
             .appendChild(renderer.domElement);
 
           // Create multiple particle systems with different behaviors
           // System 1: Floating particles
-          const particleCount1 = 2000;
+          const particleCount1 = 1500; // Reduced for better performance
           const geometry1 = new THREE.BufferGeometry();
           const positions1 = new Float32Array(particleCount1 * 3);
           const colors1 = new Float32Array(particleCount1 * 3);
@@ -583,6 +591,7 @@
             opacity: 0.6,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
+            sizeAttenuation: false, // Better performance
           });
 
           const particles1 = new THREE.Points(geometry1, material1);
@@ -590,7 +599,7 @@
           particleSystems.push(particles1);
 
           // System 2: Energy field
-          const particleCount2 = 500;
+          const particleCount2 = 300; // Reduced for better performance
           const geometry2 = new THREE.BufferGeometry();
           const positions2 = new Float32Array(particleCount2 * 3);
 
@@ -616,6 +625,8 @@
             opacity: 0.8,
             blending: THREE.AdditiveBlending,
             map: createGlowTexture(),
+            sizeAttenuation: false, // Better performance
+            depthWrite: false,
           });
 
           const particles2 = new THREE.Points(geometry2, material2);
@@ -623,8 +634,8 @@
           particleSystems.push(particles2);
 
           // Add dynamic geometries
-          // Morphing torus knot
-          const torusGeometry = new THREE.TorusKnotGeometry(1.5, 0.4, 200, 32);
+          // Morphing torus knot - reduced complexity for performance
+          const torusGeometry = new THREE.TorusKnotGeometry(1.5, 0.4, 100, 16);
           const torusMaterial = new THREE.MeshBasicMaterial({
             color: 0x7aa2f7,
             wireframe: true,
@@ -671,8 +682,8 @@
           scene.add(helix);
           meshes.push(helix);
 
-          // Plasma sphere
-          const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+          // Plasma sphere - reduced complexity
+          const sphereGeometry = new THREE.SphereGeometry(1, 20, 20);
           const sphereMaterial = new THREE.MeshBasicMaterial({
             color: 0xff9e64,
             wireframe: true,
@@ -727,92 +738,130 @@
         return texture;
       }
 
-      function animate() {
-        requestAnimationFrame(animate);
+      // Optimized animation variables
+      let animationId;
+      const targetFPS = 60;
+      const frameDuration = 1000 / targetFPS;
+      let lastFrameTime = 0;
+      let deltaTime = 0;
+      
+      // Pre-calculate base positions for particles
+      const particleBasePositions = new Map();
+      
+      function animate(currentTime) {
+        animationId = requestAnimationFrame(animate);
+        
+        // Frame rate limiting
+        if (!currentTime) currentTime = performance.now();
+        deltaTime = currentTime - lastFrameTime;
+        if (deltaTime < frameDuration) return;
+        
+        lastFrameTime = currentTime - (deltaTime % frameDuration);
         frameCount++;
         time += 0.01;
 
-        // Animate particle systems
+        // Animate particle systems with optimized approach
         if (particleSystems[0]) {
           particleSystems[0].rotation.y += 0.0003;
           particleSystems[0].rotation.x += 0.0002;
 
-          // Wave motion for particles
-          const positions =
-            particleSystems[0].geometry.attributes.position.array;
-          const basePositions = positions.slice();
-          for (let i = 0; i < positions.length; i += 3) {
-            const x = positions[i];
-            const y = positions[i + 1];
-            const z = positions[i + 2];
-
-            positions[i + 1] = y + Math.sin(time + x * 0.5) * 0.02;
-            positions[i] = x + Math.sin(time * 0.7 + z * 0.3) * 0.01;
+          // Store base positions on first frame
+          if (!particleBasePositions.has(particleSystems[0])) {
+            const positions = particleSystems[0].geometry.attributes.position.array;
+            particleBasePositions.set(particleSystems[0], new Float32Array(positions));
           }
-          particleSystems[0].geometry.attributes.position.needsUpdate = true;
+
+          // Optimized wave motion - only update every 2 frames
+          if (frameCount % 2 === 0) {
+            const positions = particleSystems[0].geometry.attributes.position.array;
+            const basePos = particleBasePositions.get(particleSystems[0]);
+            const waveAmplitudeY = 0.02;
+            const waveAmplitudeX = 0.01;
+            
+            for (let i = 0; i < positions.length; i += 3) {
+              const x = basePos[i];
+              const z = basePos[i + 2];
+              
+              positions[i] = basePos[i] + Math.sin(time * 0.7 + z * 0.3) * waveAmplitudeX;
+              positions[i + 1] = basePos[i + 1] + Math.sin(time + x * 0.5) * waveAmplitudeY;
+            }
+            particleSystems[0].geometry.attributes.position.needsUpdate = true;
+          }
         }
 
         if (particleSystems[1]) {
-          // Energy field rotation and pulsing
+          // Energy field rotation and pulsing - optimized
           particleSystems[1].rotation.y += 0.002;
           particleSystems[1].rotation.z += 0.001;
-          particleSystems[1].scale.setScalar(1 + Math.sin(time * 2) * 0.1);
+          // Only update scale every 3 frames
+          if (frameCount % 3 === 0) {
+            particleSystems[1].scale.setScalar(1 + Math.sin(time * 2) * 0.1);
+          }
         }
 
-        // Animate meshes
+        // Animate meshes - optimized with reduced calculations
         meshes.forEach((mesh, index) => {
           if (index === 0) {
             // Torus knot
             mesh.rotation.x += 0.003;
             mesh.rotation.y += 0.002;
-            mesh.scale.setScalar(1 + Math.sin(time * 1.5) * 0.1);
+            if (frameCount % 2 === 0) {
+              mesh.scale.setScalar(1 + Math.sin(time * 1.5) * 0.1);
+            }
           } else if (index === 1) {
             // Icosahedron
             mesh.rotation.x += 0.002;
             mesh.rotation.y -= 0.003;
-            mesh.position.y = Math.sin(time) * 0.5;
+            if (frameCount % 2 === 0) {
+              mesh.position.y = Math.sin(time) * 0.5;
+            }
           } else if (index === 2) {
             // Helix
             mesh.rotation.y += 0.01;
-            mesh.position.y = Math.sin(time * 0.8) * 0.3;
+            if (frameCount % 3 === 0) {
+              mesh.position.y = Math.sin(time * 0.8) * 0.3;
+            }
           } else if (index === 3) {
             // Sphere
             mesh.rotation.x += 0.004;
             mesh.rotation.z += 0.003;
-            const scale = 1 + Math.sin(time * 3) * 0.2;
-            mesh.scale.setScalar(scale);
+            if (frameCount % 2 === 0) {
+              const scale = 1 + Math.sin(time * 3) * 0.2;
+              mesh.scale.setScalar(scale);
+            }
           }
         });
 
-        // Camera movement
-        camera.position.x = Math.sin(time * 0.3) * 0.5 + mouseX * 0.5;
-        camera.position.y = Math.cos(time * 0.2) * 0.3 + mouseY * 0.5 + 1;
+        // Optimized camera movement with lerping
+        const targetX = Math.sin(time * 0.3) * 0.5 + mouseX * 0.5;
+        const targetY = Math.cos(time * 0.2) * 0.3 + mouseY * 0.5 + 1;
+        camera.position.x += (targetX - camera.position.x) * 0.1;
+        camera.position.y += (targetY - camera.position.y) * 0.1;
         camera.lookAt(0, 0, 0);
 
-        // Dynamic color changes
-        if (frameCount % 60 === 0) {
+        // Optimized color changes - less frequent updates
+        if (frameCount % 120 === 0) {
           meshes.forEach((mesh, index) => {
-            if (mesh.material) {
+            if (mesh.material && mesh.material.color) {
               const hue = (time * 0.1 + index * 0.25) % 1;
               mesh.material.color.setHSL(hue, 0.7, 0.5);
             }
           });
         }
 
-        // Update FPS counter
+        // Optimized FPS counter
         if (frameCount % 30 === 0) {
-          const fps = Math.round((1000 / (performance.now() - lastTime)) * 30);
-          document.getElementById("fpsCounter").textContent = `${Math.min(
-            fps,
-            120
-          )} FPS`;
-          lastTime = performance.now();
+          const currentFPS = Math.round(1000 / (deltaTime || 16.67));
+          const fpsElement = document.getElementById("fpsCounter");
+          if (fpsElement) {
+            fpsElement.textContent = `${Math.min(currentFPS, 120)} FPS`;
+          }
         }
 
         renderer.render(scene, camera);
       }
 
-      let lastTime = performance.now();
+      // lastTime variable moved to animation function scope
 
       // Tab management
       let tabs = [];
