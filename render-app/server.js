@@ -370,26 +370,6 @@ drwxr-xr-x   3 user  staff    96 Jun 16 00:00 node_modules
 // Apply terminal proxy to route
 app.use('/terminal-proxy', requireAuth, terminalProxy);
 
-// Handle WebSocket upgrade for terminal
-server.on('upgrade', (request, socket, head) => {
-  console.log('WebSocket upgrade request for:', request.url);
-  
-  if (request.url.startsWith('/terminal-proxy')) {
-    // Parse cookies and check session
-    const cookies = request.headers.cookie || '';
-    const sessionId = cookies.split(';').find(c => c.trim().startsWith('sessionId='));
-    
-    if (sessionId) {
-      console.log('WebSocket has session cookie, allowing upgrade');
-      terminalProxy.upgrade(request, socket, head);
-    } else {
-      console.log('WebSocket missing auth, rejecting');
-      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-      socket.destroy();
-    }
-  }
-});
-
 // Service worker and manifest
 app.get('/sw.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'sw.js'));
@@ -479,6 +459,26 @@ app.get('/health', (req, res) => {
 
 // Create HTTP server for WebSocket support
 const server = http.createServer(app);
+
+// Handle WebSocket upgrade for terminal
+server.on('upgrade', (request, socket, head) => {
+  console.log('WebSocket upgrade request for:', request.url);
+  
+  if (request.url.startsWith('/terminal-proxy')) {
+    // Parse cookies and check session
+    const cookies = request.headers.cookie || '';
+    const sessionId = cookies.split(';').find(c => c.trim().startsWith('sessionId='));
+    
+    if (sessionId) {
+      console.log('WebSocket has session cookie, allowing upgrade');
+      terminalProxy.upgrade(request, socket, head);
+    } else {
+      console.log('WebSocket missing auth, rejecting');
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+    }
+  }
+});
 
 // Start server
 server.listen(PORT, () => {
