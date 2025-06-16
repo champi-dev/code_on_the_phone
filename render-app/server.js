@@ -179,7 +179,7 @@ app.get('/api/terminal-health', requireAuth, async (req, res) => {
 });
 
 // Handle fallback requests directly
-app.get('/terminal-proxy', requireAuth, (req, res) => {
+app.get('/terminal-proxy', requireAuth, (req, res, next) => {
   if (req.query.fallback === 'true') {
     // Return fallback UI directly
     res.send(`
