@@ -104,6 +104,16 @@
             position: relative;
             background: rgba(13, 17, 23, 0.85);
             backdrop-filter: blur(5px);
+            animation: terminalGlow 4s ease-in-out infinite alternate;
+        }
+        
+        @keyframes terminalGlow {
+            0% {
+                box-shadow: inset 0 0 20px rgba(122, 162, 247, 0.05);
+            }
+            100% {
+                box-shadow: inset 0 0 30px rgba(187, 154, 247, 0.08);
+            }
         }
 
         #terminal-frame {
@@ -111,64 +121,74 @@
             height: 100%;
             border: none;
             background: transparent;
-        }
-
-        .quick-bar {
             position: relative;
-            background: rgba(22, 27, 34, 0.95);
-            backdrop-filter: blur(10px);
-            border-top: 1px solid rgba(48, 54, 61, 0.5);
-            padding: 8px;
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            height: 60px;
-            align-items: center;
-            z-index: 20;
-            -webkit-overflow-scrolling: touch;
         }
-
-        .quick-btn {
-            background: rgba(33, 38, 45, 0.8);
-            border: 1px solid rgba(48, 54, 61, 0.5);
-            border-radius: 8px;
-            padding: 8px 16px;
-            color: #c9d1d9;
-            font-size: 13px;
-            white-space: nowrap;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            flex-shrink: 0;
-            backdrop-filter: blur(5px);
-            position: relative;
+        
+        /* Terminal text animation overlay */
+        .terminal-fx {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
             overflow: hidden;
         }
-
-        .quick-btn::before {
+        
+        .terminal-fx::before {
+            content: '';
+            position: absolute;
+            top: -100%;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                0deg,
+                transparent 0%,
+                rgba(122, 162, 247, 0.03) 50%,
+                transparent 100%
+            );
+            animation: scanline 8s linear infinite;
+        }
+        
+        @keyframes scanline {
+            to {
+                top: 100%;
+            }
+        }
+        
+        /* Subtle text distortion effect */
+        .terminal-fx::after {
             content: '';
             position: absolute;
             top: 0;
-            left: -100%;
+            left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(122, 162, 247, 0.4), transparent);
-            transition: left 0.5s;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(255, 255, 255, 0.01) 2px,
+                rgba(255, 255, 255, 0.01) 4px
+            );
+            animation: flicker 0.15s infinite;
+        }
+        
+        @keyframes flicker {
+            0% {
+                opacity: 0.97;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0.98;
+            }
         }
 
-        .quick-btn:hover::before {
-            left: 100%;
-        }
-
-        .quick-btn:hover {
-            background: rgba(48, 54, 61, 0.8);
-            border-color: #7aa2f7;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(122, 162, 247, 0.3);
-        }
-
-        .quick-btn:active {
-            transform: translateY(0);
-        }
+        /* Removed quick-bar styles */
 
         .loading-screen {
             position: fixed;
@@ -302,19 +322,10 @@
         
         <div class="terminal-container">
             <iframe id="terminal-frame"></iframe>
+            <div class="terminal-fx"></div>
         </div>
         
-        <div class="quick-bar">
-            <button class="quick-btn" onclick="sendCmd('\x03')">⌃C</button>
-            <button class="quick-btn" onclick="sendCmd('clear\n')">Clear</button>
-            <button class="quick-btn" onclick="sendCmd('ls -la\n')">List</button>
-            <button class="quick-btn" onclick="sendCmd('python3\n')">Python</button>
-            <button class="quick-btn" onclick="sendCmd('ipython\n')">IPython</button>
-            <button class="quick-btn" onclick="sendCmd('jupyter notebook --ip=0.0.0.0 --no-browser\n')">Jupyter</button>
-            <button class="quick-btn" onclick="sendCmd('btop\n')">Monitor</button>
-            <button class="quick-btn" onclick="sendCmd('tmux new-window\n')">New Tab</button>
-            <button class="quick-btn" onclick="sendCmd('git status\n')">Git</button>
-        </div>
+        <!-- Removed quick-bar for cleaner interface -->
     </div>
 
     <div class="install-prompt" id="installPrompt">
@@ -460,6 +471,10 @@
                 frame.src = config.url;
                 
                 frame.onload = () => {
+                    // Try to enhance terminal after load
+                    setTimeout(() => {
+                        enhanceTerminal();
+                    }, 1000);
                     setTimeout(() => {
                         document.getElementById('loadingScreen').style.opacity = '0';
                         setTimeout(() => {
@@ -606,6 +621,83 @@
         
         // Make debug function globally available
         window.debugTerminal = debugTerminal;
+        
+        // Enhance terminal with better UX
+        function enhanceTerminal() {
+            const frame = document.getElementById('terminal-frame');
+            if (!frame || !frame.contentWindow) return;
+            
+            try {
+                const doc = frame.contentDocument || frame.contentWindow.document;
+                
+                // Inject custom CSS for syntax highlighting
+                const style = doc.createElement('style');
+                style.textContent = `
+                    /* Syntax highlighting for common commands */
+                    .xterm-screen span {
+                        transition: color 0.2s ease;
+                    }
+                    
+                    /* Command highlighting */
+                    .xterm-screen [data-text*="git"],
+                    .xterm-screen [data-text*="npm"],
+                    .xterm-screen [data-text*="python"],
+                    .xterm-screen [data-text*="node"],
+                    .xterm-screen [data-text*="cd"],
+                    .xterm-screen [data-text*="ls"],
+                    .xterm-screen [data-text*="mkdir"],
+                    .xterm-screen [data-text*="rm"],
+                    .xterm-screen [data-text*="cp"],
+                    .xterm-screen [data-text*="mv"] {
+                        color: #7aa2f7 !important;
+                        font-weight: bold;
+                    }
+                    
+                    /* String highlighting */
+                    .xterm-screen [data-text*="'"],
+                    .xterm-screen [data-text*='"'] {
+                        color: #9ece6a !important;
+                    }
+                    
+                    /* Path highlighting */
+                    .xterm-screen [data-text*="/"] {
+                        color: #bb9af7 !important;
+                    }
+                    
+                    /* Add subtle cursor animation */
+                    .xterm-cursor-layer {
+                        animation: cursorPulse 1s ease-in-out infinite;
+                    }
+                    
+                    @keyframes cursorPulse {
+                        0%, 100% { opacity: 1; }
+                        50% { opacity: 0.7; }
+                    }
+                    
+                    /* Terminal padding adjustment */
+                    .xterm-screen {
+                        padding: 10px !important;
+                    }
+                    
+                    /* Smooth scrolling */
+                    .xterm-viewport {
+                        scroll-behavior: smooth;
+                    }
+                `;
+                doc.head.appendChild(style);
+                
+                // Add keyboard shortcuts info
+                if (frame.contentWindow.term) {
+                    console.log('Terminal enhanced with custom styling');
+                }
+                
+            } catch (e) {
+                console.log('Could not enhance terminal (cross-origin):', e.message);
+            }
+        }
+        
+        // Global terminal enhancement for ttyd
+        window.enhanceTerminal = enhanceTerminal;
         
         // Initialize when page is fully loaded
         window.addEventListener('DOMContentLoaded', () => {
