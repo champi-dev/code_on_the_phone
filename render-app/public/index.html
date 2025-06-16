@@ -253,12 +253,12 @@
       }
 
       .terminal-container {
+        opacity: 0.6;
         flex: 1;
         position: relative;
-        background: rgba(13, 17, 23, 0.95);
+        background: rgba(13, 17, 23, 0.85);
         backdrop-filter: blur(5px);
         animation: terminalGlow 4s ease-in-out infinite alternate;
-        margin-bottom: 60px; /* Space for quick-bar */
       }
 
       @keyframes terminalGlow {
@@ -342,60 +342,7 @@
         }
       }
 
-      /* Quick-bar styles */
-      .quick-bar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: #161b22;
-        border-top: 1px solid #30363d;
-        padding: 8px;
-        display: flex;
-        gap: 8px;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        z-index: 1000;
-        height: 60px;
-        align-items: center;
-      }
-
-      .quick-action {
-        background: #21262d;
-        border: 1px solid #30363d;
-        border-radius: 20px;
-        padding: 8px 16px;
-        color: #c9d1d9;
-        font-size: 13px;
-        white-space: nowrap;
-        cursor: pointer;
-        transition: all 0.2s;
-        flex-shrink: 0;
-      }
-
-      .quick-action:hover {
-        background: #30363d;
-        border-color: #8b949e;
-      }
-
-      .quick-action.keyboard-key {
-        background: #1a1b26;
-        border-color: #565f89;
-        font-weight: 600;
-        min-width: 40px;
-        text-align: center;
-      }
-
-      .quick-action.keyboard-key:hover {
-        background: #24283b;
-        border-color: #7aa2f7;
-      }
-
-      .quick-action.keyboard-key.active {
-        background: #7aa2f7;
-        color: #1a1b26;
-        border-color: #7aa2f7;
-      }
+      /* Removed quick-bar styles */
 
       .loading-screen {
         position: fixed;
@@ -545,50 +492,7 @@
         <div class="terminal-fx"></div>
       </div>
 
-      <!-- Quick-bar with keyboard controls -->
-      <div class="quick-bar" id="quickActionsBar">
-        <!-- Keyboard controls -->
-        <button class="quick-action keyboard-key" onclick="sendKey('Escape')" title="ESC" style="background: #ff6b6b; color: white;">
-          ESC
-        </button>
-        <button class="quick-action keyboard-key" id="ctrlKey" onclick="toggleCtrl()" title="Ctrl (toggle)">
-          Ctrl
-        </button>
-        <button class="quick-action keyboard-key" onclick="sendKey('ArrowLeft')" title="Left Arrow">
-          ←
-        </button>
-        <button class="quick-action keyboard-key" onclick="sendKey('ArrowUp')" title="Up Arrow">
-          ↑
-        </button>
-        <button class="quick-action keyboard-key" onclick="sendKey('ArrowDown')" title="Down Arrow">
-          ↓
-        </button>
-        <button class="quick-action keyboard-key" onclick="sendKey('ArrowRight')" title="Right Arrow">
-          →
-        </button>
-        <div style="width: 1px; height: 30px; background: #30363d; margin: 0 4px;"></div>
-        <!-- Common key combinations -->
-        <button class="quick-action keyboard-key" onclick="sendCtrlKey('c')" title="Ctrl+C">
-          ^C
-        </button>
-        <button class="quick-action keyboard-key" onclick="sendCtrlKey('d')" title="Ctrl+D">
-          ^D
-        </button>
-        <button class="quick-action keyboard-key" onclick="sendCtrlKey('z')" title="Ctrl+Z">
-          ^Z
-        </button>
-        <div style="width: 1px; height: 30px; background: #30363d; margin: 0 4px;"></div>
-        <!-- Commands -->
-        <button class="quick-action" onclick="sendCommand('clear')">
-          Clear
-        </button>
-        <button class="quick-action" onclick="sendCommand('ls -la')">
-          List Files
-        </button>
-        <button class="quick-action" style="background: #7aa2f7; color: white;" onclick="debugTerminal()">
-          🔍 Debug
-        </button>
-      </div>
+      <!-- Removed quick-bar for cleaner interface -->
     </div>
 
     <div class="install-prompt" id="installPrompt">
@@ -963,7 +867,6 @@
       let tabs = [];
       let activeTabId = null;
       let tabCounter = 0;
-      let ctrlPressed = false;
 
       function generateTabId() {
         return `tab-${Date.now()}-${tabCounter++}`;
@@ -1004,8 +907,6 @@
         iframe.style.border = "none";
         iframe.style.position = "absolute";
         iframe.style.display = "none";
-        iframe.style.background = "#0d1117";
-        iframe.style.color = "#c9d1d9";
         document.getElementById("terminals-container").appendChild(iframe);
 
         return tabId;
@@ -1257,80 +1158,6 @@
 
       function dismissInstall() {
         document.getElementById("installPrompt").style.display = "none";
-      }
-
-      // Keyboard control functions
-      function sendKey(key) {
-        const activeIframe = document.getElementById(`terminal-${activeTabId}`);
-        if (activeIframe && activeIframe.contentWindow) {
-          activeIframe.contentWindow.postMessage({
-            type: "keypress",
-            key: key,
-            ctrlKey: ctrlPressed,
-            altKey: false,
-            shiftKey: false
-          }, "*");
-        }
-      }
-
-      function toggleCtrl() {
-        ctrlPressed = !ctrlPressed;
-        const ctrlButton = document.getElementById('ctrlKey');
-        if (ctrlPressed) {
-          ctrlButton.classList.add('active');
-        } else {
-          ctrlButton.classList.remove('active');
-        }
-      }
-
-      function sendCtrlKey(letter) {
-        const wasCtrlPressed = ctrlPressed;
-        ctrlPressed = true;
-        sendKey(letter);
-        ctrlPressed = wasCtrlPressed;
-        
-        // Visual feedback
-        const ctrlButton = document.getElementById('ctrlKey');
-        ctrlButton.classList.add('active');
-        setTimeout(() => {
-          if (!ctrlPressed) {
-            ctrlButton.classList.remove('active');
-          }
-        }, 100);
-      }
-
-      function sendCommand(command) {
-        const activeIframe = document.getElementById(`terminal-${activeTabId}`);
-        if (activeIframe && activeIframe.contentWindow) {
-          activeIframe.contentWindow.postMessage({
-            type: "command",
-            command: command,
-          }, "*");
-        }
-      }
-
-      function debugTerminal() {
-        console.log('=== TERMINAL DEBUG ===');
-        console.log('Active tab ID:', activeTabId);
-        const activeIframe = document.getElementById(`terminal-${activeTabId}`);
-        console.log('Active iframe found:', !!activeIframe);
-        
-        if (activeIframe) {
-          const styles = window.getComputedStyle(activeIframe);
-          console.log('Iframe styles:');
-          console.log('- Display:', styles.display);
-          console.log('- Visibility:', styles.visibility);
-          console.log('- Background:', styles.background);
-          console.log('- Color:', styles.color);
-          console.log('- Position:', activeIframe.getBoundingClientRect());
-        }
-        
-        const quickBar = document.getElementById('quickActionsBar');
-        console.log('Quick bar found:', !!quickBar);
-        if (quickBar) {
-          console.log('Quick bar visible:', quickBar.offsetWidth > 0);
-          quickBar.scrollLeft = 0; // Scroll to start
-        }
       }
 
       // Service Worker
