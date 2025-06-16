@@ -158,24 +158,6 @@
         font-weight: 500;
       }
 
-      .quick-action.keyboard-key {
-        background: #1a1b26;
-        border-color: #565f89;
-        font-weight: 600;
-        min-width: 40px;
-      }
-
-      .quick-action.keyboard-key:hover {
-        background: #24283b;
-        border-color: #7aa2f7;
-      }
-
-      .quick-action.keyboard-key.active {
-        background: #7aa2f7;
-        color: #1a1b26;
-        border-color: #7aa2f7;
-      }
-
       .status-indicator {
         width: 8px;
         height: 8px;
@@ -377,38 +359,6 @@
     </div>
 
     <div class="quick-actions">
-      <!-- Keyboard controls section -->
-      <button class="quick-action keyboard-key" onclick="sendKey('Escape')" title="ESC">
-        ESC
-      </button>
-      <button class="quick-action keyboard-key" id="ctrlKey" onclick="toggleCtrl()" title="Ctrl (toggle)">
-        Ctrl
-      </button>
-      <button class="quick-action keyboard-key" onclick="sendKey('ArrowLeft')" title="Left Arrow">
-        ←
-      </button>
-      <button class="quick-action keyboard-key" onclick="sendKey('ArrowUp')" title="Up Arrow">
-        ↑
-      </button>
-      <button class="quick-action keyboard-key" onclick="sendKey('ArrowDown')" title="Down Arrow">
-        ↓
-      </button>
-      <button class="quick-action keyboard-key" onclick="sendKey('ArrowRight')" title="Right Arrow">
-        →
-      </button>
-      <div style="width: 1px; height: 30px; background: #30363d; margin: 0 4px;"></div>
-      <!-- Common key combinations -->
-      <button class="quick-action keyboard-key" onclick="sendCtrlKey('c')" title="Ctrl+C">
-        ^C
-      </button>
-      <button class="quick-action keyboard-key" onclick="sendCtrlKey('d')" title="Ctrl+D">
-        ^D
-      </button>
-      <button class="quick-action keyboard-key" onclick="sendCtrlKey('z')" title="Ctrl+Z">
-        ^Z
-      </button>
-      <div style="width: 1px; height: 30px; background: #30363d; margin: 0 4px;"></div>
-      <!-- Command shortcuts -->
       <button
         class="quick-action primary"
         onclick="sendCommand('tmux new-window')"
@@ -503,8 +453,6 @@
       const terminalFrame = document.getElementById("terminal-frame");
       const loadingScreen = document.getElementById("loadingScreen");
       const floatingMenu = document.getElementById("floatingMenu");
-      
-      let ctrlPressed = false;
 
       // Hide loading screen when terminal loads
       terminalFrame.onload = () => {
@@ -602,95 +550,6 @@
           },
           "*"
         );
-      }
-
-      function sendKey(key) {
-        // Send keyboard event to terminal iframe with ctrl state
-        terminalFrame.contentWindow.postMessage(
-          {
-            type: "keypress",
-            key: key,
-            ctrlKey: ctrlPressed,
-            altKey: false,
-            shiftKey: false
-          },
-          "*"
-        );
-        
-        // Also try to directly send key events for better compatibility
-        try {
-          const iframeDoc = terminalFrame.contentDocument || terminalFrame.contentWindow.document;
-          const activeElement = iframeDoc.activeElement || iframeDoc.body;
-          
-          // Focus the terminal if needed
-          if (activeElement && activeElement.focus) {
-            activeElement.focus();
-          }
-          
-          // Create and dispatch keyboard event
-          const event = new KeyboardEvent('keydown', {
-            key: key,
-            code: getKeyCode(key),
-            ctrlKey: ctrlPressed,
-            bubbles: true,
-            cancelable: true
-          });
-          
-          activeElement.dispatchEvent(event);
-          
-          // Also dispatch keyup for complete key press
-          const keyupEvent = new KeyboardEvent('keyup', {
-            key: key,
-            code: getKeyCode(key),
-            ctrlKey: ctrlPressed,
-            bubbles: true,
-            cancelable: true
-          });
-          
-          activeElement.dispatchEvent(keyupEvent);
-        } catch (e) {
-          // Cross-origin iframe, rely on postMessage
-          console.log('Using postMessage for key event');
-        }
-      }
-      
-      function toggleCtrl() {
-        ctrlPressed = !ctrlPressed;
-        const ctrlButton = document.getElementById('ctrlKey');
-        if (ctrlPressed) {
-          ctrlButton.classList.add('active');
-        } else {
-          ctrlButton.classList.remove('active');
-        }
-      }
-      
-      function sendCtrlKey(letter) {
-        // Temporarily set ctrl to true, send the key, then restore
-        const wasCtrlPressed = ctrlPressed;
-        ctrlPressed = true;
-        sendKey(letter);
-        ctrlPressed = wasCtrlPressed;
-        
-        // Visual feedback
-        const ctrlButton = document.getElementById('ctrlKey');
-        ctrlButton.classList.add('active');
-        setTimeout(() => {
-          if (!ctrlPressed) {
-            ctrlButton.classList.remove('active');
-          }
-        }, 100);
-      }
-      
-      function getKeyCode(key) {
-        const keyCodes = {
-          'Escape': 'Escape',
-          'Control': 'ControlLeft',
-          'ArrowLeft': 'ArrowLeft',
-          'ArrowRight': 'ArrowRight',
-          'ArrowUp': 'ArrowUp',
-          'ArrowDown': 'ArrowDown'
-        };
-        return keyCodes[key] || key;
       }
 
       function toggleFullscreen() {
