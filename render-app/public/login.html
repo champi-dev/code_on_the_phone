@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0d1117">
     <title>Cloud Terminal 3D - Login</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="alternate icon" href="/favicon.ico">
     <style>
         * {
             margin: 0;
@@ -220,6 +222,7 @@
         </div>
         
         <form id="loginForm">
+            <input type="text" id="username" name="username" value="user" autocomplete="username" style="display: none;" aria-hidden="true">
             <div class="form-group">
                 <label for="password">Password</label>
                 <input type="password" id="password" name="password" autocomplete="current-password" autofocus required>
