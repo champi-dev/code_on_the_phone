@@ -4,8 +4,7 @@ const urlsToCache = [
   '/',
   '/login',
   '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
+  '/icon.svg',
   'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js'
 ];
 

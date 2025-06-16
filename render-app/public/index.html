@@ -6,8 +6,8 @@
     <meta name="theme-color" content="#0d1117">
     <title>Cloud Terminal 3D</title>
     <link rel="manifest" href="/manifest.json">
-    <link rel="icon" type="image/png" href="/icon-192.png">
-    <link rel="apple-touch-icon" href="/icon-192.png">
+    <link rel="icon" type="image/svg+xml" href="/icon.svg">
+    <link rel="apple-touch-icon" href="/icon.svg">
     <style>
         * {
             margin: 0;
@@ -488,9 +488,22 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Initialize
-        initThree();
-        initTerminal();
+        // Initialize when page is fully loaded
+        window.addEventListener('DOMContentLoaded', () => {
+            // Check if THREE is loaded
+            if (typeof THREE !== 'undefined') {
+                initThree();
+            } else {
+                // Fallback: wait for script to load
+                const checkThree = setInterval(() => {
+                    if (typeof THREE !== 'undefined') {
+                        clearInterval(checkThree);
+                        initThree();
+                    }
+                }, 100);
+            }
+            initTerminal();
+        });
     </script>
 </body>
 </html>
