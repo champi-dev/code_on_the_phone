@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyboard Controls Debug</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #0d1117;
+            color: #c9d1d9;
+            font-family: -apple-system, sans-serif;
+        }
+        
+        .debug-info {
+            background: #161b22;
+            border: 1px solid #30363d;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+        }
+        
+        .highlight {
+            background: #7aa2f7;
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        
+        .test-container {
+            border: 2px solid #7aa2f7;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        
+        /* Copy of quick-actions CSS */
+        .quick-actions {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #161b22;
+            border-top: 1px solid #30363d;
+            padding: 8px;
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            z-index: 1000;
+            height: 60px;
+            align-items: center;
+        }
+        
+        .quick-action {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 20px;
+            padding: 8px 16px;
+            color: #c9d1d9;
+            font-size: 13px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        
+        .quick-action.keyboard-key {
+            background: #1a1b26;
+            border-color: #565f89;
+            font-weight: 600;
+            min-width: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-info">
+        <h2>Debugging Keyboard Controls Visibility</h2>
+        <p>Window width: <span id="windowWidth" class="highlight"></span></p>
+        <p>Quick actions container width: <span id="containerWidth" class="highlight"></span></p>
+        <p>Total buttons width: <span id="buttonsWidth" class="highlight"></span></p>
+        <p>Scroll position: <span id="scrollPos" class="highlight"></span></p>
+    </div>
+    
+    <div class="test-container">
+        <h3>Test: Are keyboard buttons rendering?</h3>
+        <div id="renderTest"></div>
+    </div>
+    
+    <div class="test-container">
+        <h3>Quick Actions Container Info:</h3>
+        <div id="containerInfo"></div>
+    </div>
+
+    <script>
+        // Check if we're on the actual page
+        function debugQuickActions() {
+            const quickActions = document.querySelector('.quick-actions');
+            const keyboardButtons = document.querySelectorAll('.keyboard-key');
+            
+            document.getElementById('windowWidth').textContent = window.innerWidth + 'px';
+            
+            if (quickActions) {
+                const rect = quickActions.getBoundingClientRect();
+                document.getElementById('containerWidth').textContent = rect.width + 'px';
+                document.getElementById('scrollPos').textContent = quickActions.scrollLeft + 'px';
+                
+                // Calculate total width of all buttons
+                let totalWidth = 0;
+                quickActions.querySelectorAll('.quick-action').forEach(btn => {
+                    totalWidth += btn.offsetWidth + 8; // 8px gap
+                });
+                document.getElementById('buttonsWidth').textContent = totalWidth + 'px';
+                
+                // Container info
+                document.getElementById('containerInfo').innerHTML = `
+                    <p>Display: ${getComputedStyle(quickActions).display}</p>
+                    <p>Visibility: ${getComputedStyle(quickActions).visibility}</p>
+                    <p>Opacity: ${getComputedStyle(quickActions).opacity}</p>
+                    <p>Z-index: ${getComputedStyle(quickActions).zIndex}</p>
+                    <p>Position: ${getComputedStyle(quickActions).position}</p>
+                    <p>Bottom: ${getComputedStyle(quickActions).bottom}</p>
+                `;
+            } else {
+                document.getElementById('containerInfo').innerHTML = '<p class="highlight">Quick actions container not found!</p>';
+            }
+            
+            // Check keyboard buttons
+            if (keyboardButtons.length > 0) {
+                document.getElementById('renderTest').innerHTML = `
+                    <p class="highlight">Found ${keyboardButtons.length} keyboard buttons!</p>
+                    <p>First button text: "${keyboardButtons[0].textContent.trim()}"</p>
+                `;
+            } else {
+                document.getElementById('renderTest').innerHTML = '<p class="highlight">No keyboard buttons found!</p>';
+            }
+        }
+        
+        // Run debug
+        debugQuickActions();
+        
+        // Also log to console
+        console.log('Quick Actions Debug:');
+        console.log('Container:', document.querySelector('.quick-actions'));
+        console.log('Keyboard buttons:', document.querySelectorAll('.keyboard-key'));
+    </script>
+</body>
+</html>
