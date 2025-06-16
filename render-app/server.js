@@ -324,6 +324,79 @@ const terminalProxy = createProxyMiddleware({
   },
   onProxyRes: (proxyRes, req, res) => {
     console.log('Proxy response status:', proxyRes.statusCode);
+    
+    // If it's an HTML response (ttyd terminal), inject our CSS fixes
+    if (proxyRes.headers['content-type'] && proxyRes.headers['content-type'].includes('text/html')) {
+      // Remove content-length header as we'll modify the content
+      delete proxyRes.headers['content-length'];
+      
+      let body = '';
+      const originalWrite = res.write;
+      const originalEnd = res.end;
+      
+      res.write = function(chunk) {
+        if (chunk) {
+          body += chunk.toString();
+        }
+      };
+      
+      res.end = function(chunk) {
+        if (chunk) {
+          body += chunk.toString();
+        }
+        
+        // Inject CSS fixes for mobile terminal visibility
+        const cssInjection = `
+          <style>
+            /* Force terminal text visibility on mobile */
+            body, html {
+              background: #0d1117 !important;
+              color: #c9d1d9 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            
+            .xterm, .xterm-viewport, .xterm-screen {
+              background: #0d1117 !important;
+              color: #c9d1d9 !important;
+              opacity: 1 !important;
+              visibility: visible !important;
+            }
+            
+            .xterm-screen span {
+              color: #c9d1d9 !important;
+              opacity: 1 !important;
+            }
+            
+            /* Make sure terminal fills the container */
+            #terminal {
+              width: 100% !important;
+              height: 100% !important;
+              background: #0d1117 !important;
+            }
+            
+            /* Fix for mobile touch */
+            .xterm-screen {
+              -webkit-user-select: text !important;
+              user-select: text !important;
+              -webkit-touch-callout: none !important;
+            }
+          </style>
+        `;
+        
+        // Inject CSS before closing head tag
+        if (body.includes('</head>')) {
+          body = body.replace('</head>', cssInjection + '</head>');
+        } else if (body.includes('<head>')) {
+          body = body.replace('<head>', '<head>' + cssInjection);
+        } else {
+          // If no head tag, add at the beginning
+          body = cssInjection + body;
+        }
+        
+        originalEnd.call(this, body);
+      };
+    }
   },
   onError: (err, req, res) => {
     console.error('Proxy error:', err.message);
