@@ -1,5 +1,5 @@
 // Service Worker for PWA functionality
-const CACHE_NAME = 'cloud-terminal-v6';
+const CACHE_NAME = 'cloud-terminal-v7';
 const urlsToCache = [
   '/manifest.json',
   '/icon.svg',

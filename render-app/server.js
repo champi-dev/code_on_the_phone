@@ -79,11 +79,24 @@ app.get('/login', (req, res) => {
 app.post('/api/login', async (req, res) => {
   const { password } = req.body;
   
-  if (password && await bcrypt.compare(password, PASSWORD_HASH)) {
-    req.session.authenticated = true;
-    res.json({ success: true });
-  } else {
-    res.status(401).json({ success: false, message: 'Invalid password' });
+  console.log('Login attempt:', {
+    passwordReceived: !!password,
+    passwordLength: password ? password.length : 0,
+    passwordHashSet: !!PASSWORD_HASH
+  });
+  
+  try {
+    if (password && await bcrypt.compare(password, PASSWORD_HASH)) {
+      req.session.authenticated = true;
+      console.log('Login successful');
+      res.json({ success: true });
+    } else {
+      console.log('Login failed - password mismatch');
+      res.status(401).json({ success: false, message: 'Invalid password' });
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

@@ -296,11 +296,20 @@
         }
 
         // Login functionality
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginForm = document.getElementById('loginForm');
+            if (!loginForm) {
+                console.error('Login form not found!');
+                return;
+            }
+            
+            loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const password = document.getElementById('password').value;
             const errorMsg = document.getElementById('errorMessage');
+            
+            console.log('Login attempt with password length:', password.length);
             
             try {
                 const response = await fetch('/api/login', {
@@ -309,19 +318,29 @@
                     body: JSON.stringify({ password })
                 });
                 
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const result = await response.json();
+                console.log('Login result:', result);
                 
                 if (result.success) {
                     window.location.href = '/';
                 } else {
+                    errorMsg.textContent = result.message || 'Invalid password. Please try again.';
                     errorMsg.style.display = 'block';
                     document.getElementById('password').value = '';
                     document.getElementById('password').focus();
                 }
             } catch (error) {
+                console.error('Login error:', error);
                 errorMsg.textContent = 'Connection error. Please try again.';
                 errorMsg.style.display = 'block';
             }
+            });
         });
 
         // Window resize
