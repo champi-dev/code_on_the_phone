@@ -23,6 +23,8 @@
         position: fixed;
         width: 100%;
         height: 100%;
+        touch-action: pan-y;
+        -webkit-overflow-scrolling: touch;
       }
 
       .terminal-header {
@@ -95,6 +97,9 @@
         right: 0;
         bottom: 60px;
         background: #0d1117;
+        overflow: hidden;
+        touch-action: pan-y;
+        -webkit-overflow-scrolling: touch;
       }
 
       #terminal-frame {
@@ -102,6 +107,9 @@
         height: 100%;
         border: none;
         background: #0d1117;
+        touch-action: manipulation;
+        -webkit-overflow-scrolling: touch;
+        overflow-scrolling: touch;
       }
 
       .quick-actions {
@@ -454,6 +462,65 @@
             loadingScreen.style.display = "none";
           }, 300);
         }, 500);
+        
+        // Optimize iframe scrolling performance
+        try {
+          const iframeDoc = terminalFrame.contentDocument || terminalFrame.contentWindow.document;
+          
+          // Add optimized CSS to iframe
+          const style = iframeDoc.createElement('style');
+          style.textContent = `
+            body, html {
+              -webkit-overflow-scrolling: touch !important;
+              overflow-scrolling: touch !important;
+              touch-action: manipulation !important;
+            }
+            .xterm-viewport {
+              -webkit-overflow-scrolling: touch !important;
+              overflow-scrolling: touch !important;
+              touch-action: pan-y !important;
+            }
+            .xterm-screen {
+              touch-action: pan-y !important;
+            }
+          `;
+          iframeDoc.head.appendChild(style);
+          
+          // Send configuration to xterm.js
+          terminalFrame.contentWindow.postMessage({
+            type: 'configure',
+            config: {
+              scrollSensitivity: 5,
+              fastScrollSensitivity: 10,
+              scrollback: 1000,
+              smoothScrollDuration: 0,
+              disableStdin: false,
+              cursorBlink: true,
+              cursorStyle: 'block',
+              bellStyle: 'none',
+              fontSize: 14,
+              lineHeight: 1.2,
+              allowTransparency: true,
+              theme: {
+                background: '#0d1117',
+                foreground: '#c9d1d9',
+                cursor: '#c9d1d9',
+                selection: '#33467C'
+              }
+            }
+          }, '*');
+        } catch (e) {
+          console.log('Cross-origin iframe, using postMessage for config');
+          terminalFrame.contentWindow.postMessage({
+            type: 'configure',
+            config: {
+              scrollSensitivity: 5,
+              fastScrollSensitivity: 10,
+              scrollback: 1000,
+              smoothScrollDuration: 0
+            }
+          }, '*');
+        }
       };
 
       function sendCommand(command) {

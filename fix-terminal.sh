@@ -8,9 +8,19 @@ ps aux | grep ttyd
 # Kill any existing ttyd processes
 pkill ttyd
 
-# Start ttyd properly
-echo "Starting ttyd..."
-ttyd -p 7681 /usr/bin/bash &
+# Start ttyd properly with mobile optimizations
+echo "Starting ttyd with mobile optimizations..."
+ttyd -p 7681 \
+  -t fontSize=14 \
+  -t lineHeight=1.2 \
+  -t bellStyle=none \
+  -t scrollback=1000 \
+  -t rendererType=canvas \
+  -t fastScrollSensitivity=10 \
+  -t scrollSensitivity=5 \
+  -t smoothScrollDuration=0 \
+  -t 'theme={"background": "#0d1117", "foreground": "#c9d1d9", "cursor": "#c9d1d9", "selection": "#33467C"}' \
+  /usr/bin/bash &
 
 # Check firewall
 echo "Checking firewall..."
