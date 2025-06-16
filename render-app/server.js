@@ -460,6 +460,13 @@ app.get('/health', (req, res) => {
 // Create HTTP server for WebSocket support
 const server = http.createServer(app);
 
+// Log environment on startup
+console.log('Environment variables:');
+console.log('TERMINAL_HOST:', process.env.TERMINAL_HOST || '142.93.249.123');
+console.log('TERMINAL_PORT:', process.env.TERMINAL_PORT || '7681');
+console.log('Actual TERMINAL_HOST being used:', TERMINAL_HOST);
+console.log('Actual TERMINAL_PORT being used:', TERMINAL_PORT);
+
 // Handle WebSocket upgrade for terminal
 server.on('upgrade', (request, socket, head) => {
   console.log('WebSocket upgrade request for:', request.url);
