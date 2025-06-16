@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cloud Terminal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+
+        .terminal-header {
+            background: linear-gradient(to bottom, #161b22 0%, #0d1117 100%);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #30363d;
+            height: 50px;
+        }
+
+        .terminal-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #3fb950;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .terminal-container {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            right: 0;
+            bottom: 60px;
+        }
+
+        #terminal-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #0d1117;
+        }
+
+        .quick-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #161b22;
+            border-top: 1px solid #30363d;
+            padding: 8px;
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            height: 60px;
+            align-items: center;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .quick-btn {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 8px 16px;
+            color: #c9d1d9;
+            font-size: 13px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .quick-btn:hover {
+            background: #30363d;
+            border-color: #8b949e;
+        }
+
+        .quick-btn:active {
+            transform: scale(0.95);
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #30363d;
+            border-top-color: #7aa2f7;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal-header">
+        <div class="terminal-title">
+            <div class="status-dot"></div>
+            Cloud Terminal
+        </div>
+        <div style="font-size: 12px; color: #8b949e;">
+            O(1) Performance
+        </div>
+    </div>
+    
+    <div class="terminal-container">
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div style="color: #8b949e;">Connecting to terminal...</div>
+        </div>
+        <iframe id="terminal-frame" style="display: none;"></iframe>
+    </div>
+    
+    <div class="quick-bar">
+        <button class="quick-btn" onclick="sendCmd('\x03')">Ctrl+C</button>
+        <button class="quick-btn" onclick="sendCmd('clear\n')">Clear</button>
+        <button class="quick-btn" onclick="sendCmd('ls -la\n')">List Files</button>
+        <button class="quick-btn" onclick="sendCmd('python3\n')">Python</button>
+        <button class="quick-btn" onclick="sendCmd('ipython\n')">IPython</button>
+        <button class="quick-btn" onclick="sendCmd('node\n')">Node.js</button>
+        <button class="quick-btn" onclick="sendCmd('btop\n')">Monitor</button>
+        <button class="quick-btn" onclick="sendCmd('tmux new-window\n')">New Tab</button>
+    </div>
+
+    <script>
+        // Get terminal URL from server configuration
+        const terminalHost = window.location.hostname;
+        const terminalUrl = window.location.protocol + '//' + terminalHost + ':7681';
+        
+        const frame = document.getElementById('terminal-frame');
+        const loading = document.getElementById('loading');
+        
+        // For production, you'll want to use the actual VPS URL
+        // This is configured via environment variables on Render
+        frame.src = terminalUrl;
+        
+        frame.onload = () => {
+            loading.style.display = 'none';
+            frame.style.display = 'block';
+        };
+        
+        frame.onerror = () => {
+            loading.innerHTML = `
+                <div style="color: #f85149;">Failed to connect to terminal</div>
+                <div style="color: #8b949e; font-size: 14px; margin-top: 10px;">
+                    Make sure your VPS is running and accessible
+                </div>
+            `;
+        };
+        
+        function sendCmd(cmd) {
+            frame.contentWindow.postMessage({
+                type: 'input',
+                data: cmd
+            }, '*');
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault();
+                sendCmd('clear\n');
+            }
+        });
+    </script>
+</body>
+</html>
