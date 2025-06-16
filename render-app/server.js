@@ -148,15 +148,25 @@ app.get('/api/terminal-health', requireAuth, async (req, res) => {
       port: TERMINAL_PORT,
       path: '/',
       method: 'GET',
-      timeout: 5000
+      timeout: 5000,
+      headers: {
+        'User-Agent': 'CloudTerminal/1.0'
+      }
     };
     
+    console.log('Health check to:', `http://${TERMINAL_HOST}:${TERMINAL_PORT}/`);
+    
     const req = http.request(options, (response) => {
+      console.log('Health check response:', response.statusCode);
       resolve({ available: response.statusCode < 500 });
     });
     
-    req.on('error', () => resolve({ available: false }));
+    req.on('error', (err) => {
+      console.error('Health check error:', err.message);
+      resolve({ available: false });
+    });
     req.on('timeout', () => {
+      console.error('Health check timeout');
       req.destroy();
       resolve({ available: false });
     });
@@ -361,6 +371,60 @@ app.get('/manifest.json', (req, res) => {
 
 app.get('/favicon.ico', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'favicon.svg'));
+});
+
+// Test proxy configuration
+app.get('/api/proxy-test', requireAuth, async (req, res) => {
+  const http = require('http');
+  
+  const testProxy = new Promise((resolve) => {
+    const postData = '';
+    const options = {
+      hostname: TERMINAL_HOST,
+      port: TERMINAL_PORT,
+      path: '/',
+      method: 'GET',
+      headers: {
+        'Content-Type': 'text/html',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
+    
+    console.log('Direct test to:', `http://${TERMINAL_HOST}:${TERMINAL_PORT}/`);
+    
+    const req = http.request(options, (response) => {
+      let data = '';
+      response.on('data', (chunk) => {
+        data += chunk;
+      });
+      response.on('end', () => {
+        resolve({
+          statusCode: response.statusCode,
+          headers: response.headers,
+          bodyLength: data.length,
+          bodyPreview: data.substring(0, 200)
+        });
+      });
+    });
+    
+    req.on('error', (err) => {
+      resolve({
+        error: err.message,
+        code: err.code
+      });
+    });
+    
+    req.write(postData);
+    req.end();
+  });
+  
+  const result = await testProxy;
+  res.json({
+    terminalHost: TERMINAL_HOST,
+    terminalPort: TERMINAL_PORT,
+    proxyTarget: `http://${TERMINAL_HOST}:${TERMINAL_PORT}`,
+    testResult: result
+  });
 });
 
 // Health check
