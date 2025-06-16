@@ -1,8 +1,6 @@
 // Service Worker for PWA functionality
 const CACHE_NAME = 'cloud-terminal-v1';
 const urlsToCache = [
-  '/',
-  '/login',
   '/manifest.json',
   '/icon.svg',
   'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js'
@@ -14,7 +12,15 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('Opened cache');
-        return cache.addAll(urlsToCache);
+        // Cache resources one by one to handle failures gracefully
+        return Promise.all(
+          urlsToCache.map(url => {
+            return cache.add(url).catch(err => {
+              console.warn(`Failed to cache ${url}:`, err);
+              // Continue caching other resources even if one fails
+            });
+          })
+        );
       })
   );
   self.skipWaiting();

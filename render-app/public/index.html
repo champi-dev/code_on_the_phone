@@ -417,6 +417,16 @@
         async function initTerminal() {
             try {
                 const response = await fetch('/api/terminal-config');
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        // Redirect to login if unauthorized
+                        window.location.href = '/login';
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const config = await response.json();
                 
                 const frame = document.getElementById('terminal-frame');
@@ -432,6 +442,8 @@
                 };
             } catch (error) {
                 console.error('Failed to load terminal config:', error);
+                // Hide loading screen even on error
+                document.getElementById('loadingScreen').style.display = 'none';
             }
         }
 

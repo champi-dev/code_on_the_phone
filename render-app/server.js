@@ -62,7 +62,12 @@ const requireAuth = (req, res, next) => {
   if (req.session.authenticated) {
     next();
   } else {
-    res.redirect('/login');
+    // Check if this is an API request
+    if (req.path.startsWith('/api/')) {
+      res.status(401).json({ error: 'Unauthorized', redirect: '/login' });
+    } else {
+      res.redirect('/login');
+    }
   }
 };
 
