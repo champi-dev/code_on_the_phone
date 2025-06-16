@@ -396,6 +396,20 @@
         color: #1a1b26;
         border-color: #7aa2f7;
       }
+      
+      /* Force terminal iframe visibility */
+      #terminals-container {
+        background: #0d1117 !important;
+        z-index: 1;
+      }
+      
+      #terminals-container iframe {
+        background: #0d1117 !important;
+        color: #c9d1d9 !important;
+        filter: none !important;
+        opacity: 1 !important;
+        -webkit-filter: none !important;
+      }
 
       .loading-screen {
         position: fixed;
@@ -1004,8 +1018,12 @@
         iframe.style.border = "none";
         iframe.style.position = "absolute";
         iframe.style.display = "none";
-        iframe.style.background = "#0d1117";
-        iframe.style.color = "#c9d1d9";
+        iframe.style.background = "#0d1117 !important";
+        iframe.style.color = "#c9d1d9 !important";
+        iframe.style.top = "0";
+        iframe.style.left = "0";
+        iframe.style.opacity = "1 !important";
+        iframe.style.filter = "none !important";
         document.getElementById("terminals-container").appendChild(iframe);
 
         return tabId;
@@ -1322,7 +1340,30 @@
           console.log('- Visibility:', styles.visibility);
           console.log('- Background:', styles.background);
           console.log('- Color:', styles.color);
+          console.log('- Opacity:', styles.opacity);
+          console.log('- Filter:', styles.filter);
           console.log('- Position:', activeIframe.getBoundingClientRect());
+          
+          // Try to access iframe content
+          try {
+            const iframeDoc = activeIframe.contentDocument || activeIframe.contentWindow.document;
+            if (iframeDoc) {
+              const terminalElements = iframeDoc.querySelectorAll('.xterm-screen, .xterm-viewport, .xterm');
+              console.log('Terminal elements found:', terminalElements.length);
+              terminalElements.forEach((el, i) => {
+                const elStyles = iframeDoc.defaultView.getComputedStyle(el);
+                console.log(`Element ${i}:`, {
+                  display: elStyles.display,
+                  visibility: elStyles.visibility,
+                  opacity: elStyles.opacity,
+                  color: elStyles.color,
+                  background: elStyles.background
+                });
+              });
+            }
+          } catch (e) {
+            console.log('Cannot access iframe content (cross-origin):', e.message);
+          }
         }
         
         const quickBar = document.getElementById('quickActionsBar');
@@ -1331,6 +1372,9 @@
           console.log('Quick bar visible:', quickBar.offsetWidth > 0);
           quickBar.scrollLeft = 0; // Scroll to start
         }
+        
+        // Alert visible for mobile debugging
+        alert('Debug complete - check console');
       }
 
       // Service Worker
@@ -1396,6 +1440,20 @@
           // Inject custom CSS for syntax highlighting
           const style = doc.createElement("style");
           style.textContent = `
+                    /* Force terminal text visibility */
+                    .xterm-screen, .xterm-viewport, .xterm, body, html {
+                        background: #0d1117 !important;
+                        color: #c9d1d9 !important;
+                        opacity: 1 !important;
+                        visibility: visible !important;
+                    }
+                    
+                    .xterm-screen span {
+                        color: #c9d1d9 !important;
+                        opacity: 1 !important;
+                        visibility: visible !important;
+                    }
+                    
                     /* Syntax highlighting for common commands */
                     .xterm-screen span {
                         transition: color 0.2s ease;
