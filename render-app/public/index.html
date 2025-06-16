@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0d1117">
+    <title>Cloud Terminal 3D</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" href="/icon-192.png">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+
+        #three-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .terminal-wrapper {
+            position: relative;
+            z-index: 10;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terminal-header {
+            background: rgba(22, 27, 34, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+            height: 50px;
+            z-index: 20;
+        }
+
+        .terminal-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .glow-orb {
+            width: 10px;
+            height: 10px;
+            background: radial-gradient(circle, #7aa2f7 0%, #bb9af7 100%);
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(122, 162, 247, 0.8);
+        }
+
+        @keyframes pulse {
+            0%, 100% { 
+                opacity: 1; 
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 0.8; 
+                transform: scale(1.2);
+            }
+        }
+
+        .performance-monitor {
+            font-size: 11px;
+            font-family: 'SF Mono', Monaco, monospace;
+            color: #9ece6a;
+            background: rgba(26, 27, 38, 0.8);
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .fps-counter {
+            color: #7aa2f7;
+        }
+
+        .terminal-container {
+            flex: 1;
+            position: relative;
+            background: rgba(13, 17, 23, 0.85);
+            backdrop-filter: blur(5px);
+        }
+
+        #terminal-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+        }
+
+        .quick-bar {
+            position: relative;
+            background: rgba(22, 27, 34, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(48, 54, 61, 0.5);
+            padding: 8px;
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            height: 60px;
+            align-items: center;
+            z-index: 20;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .quick-btn {
+            background: rgba(33, 38, 45, 0.8);
+            border: 1px solid rgba(48, 54, 61, 0.5);
+            border-radius: 8px;
+            padding: 8px 16px;
+            color: #c9d1d9;
+            font-size: 13px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            flex-shrink: 0;
+            backdrop-filter: blur(5px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .quick-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(122, 162, 247, 0.4), transparent);
+            transition: left 0.5s;
+        }
+
+        .quick-btn:hover::before {
+            left: 100%;
+        }
+
+        .quick-btn:hover {
+            background: rgba(48, 54, 61, 0.8);
+            border-color: #7aa2f7;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(122, 162, 247, 0.3);
+        }
+
+        .quick-btn:active {
+            transform: translateY(0);
+        }
+
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0d1117;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.5s;
+        }
+
+        .loading-content {
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            position: relative;
+            margin: 0 auto 20px;
+        }
+
+        .loading-spinner::before,
+        .loading-spinner::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            border-top-color: #7aa2f7;
+            animation: spin 1.5s linear infinite;
+        }
+
+        .loading-spinner::after {
+            border-top-color: #bb9af7;
+            animation-delay: 0.2s;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .logout-btn {
+            background: rgba(248, 81, 73, 0.1);
+            border: 1px solid rgba(248, 81, 73, 0.3);
+            border-radius: 6px;
+            padding: 6px 12px;
+            color: #f85149;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(248, 81, 73, 0.2);
+            border-color: #f85149;
+        }
+
+        /* PWA install prompt */
+        .install-prompt {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(33, 38, 45, 0.95);
+            border: 1px solid rgba(122, 162, 247, 0.5);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+            z-index: 100;
+        }
+
+        .install-prompt button {
+            background: linear-gradient(135deg, #7aa2f7 0%, #bb9af7 100%);
+            border: none;
+            border-radius: 6px;
+            padding: 8px 16px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        @media (max-width: 640px) {
+            .terminal-title {
+                font-size: 14px;
+            }
+            
+            .quick-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
+</head>
+<body>
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div style="color: #8b949e;">Initializing quantum terminal...</div>
+        </div>
+    </div>
+
+    <div id="three-container"></div>
+
+    <div class="terminal-wrapper">
+        <div class="terminal-header">
+            <div class="terminal-title">
+                <div class="glow-orb"></div>
+                Cloud Terminal 3D
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <div class="performance-monitor">
+                    <span>O(1)</span>
+                    <span class="fps-counter" id="fpsCounter">120 FPS</span>
+                </div>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+        
+        <div class="terminal-container">
+            <iframe id="terminal-frame"></iframe>
+        </div>
+        
+        <div class="quick-bar">
+            <button class="quick-btn" onclick="sendCmd('\x03')">⌃C</button>
+            <button class="quick-btn" onclick="sendCmd('clear\n')">Clear</button>
+            <button class="quick-btn" onclick="sendCmd('ls -la\n')">List</button>
+            <button class="quick-btn" onclick="sendCmd('python3\n')">Python</button>
+            <button class="quick-btn" onclick="sendCmd('ipython\n')">IPython</button>
+            <button class="quick-btn" onclick="sendCmd('jupyter notebook --ip=0.0.0.0 --no-browser\n')">Jupyter</button>
+            <button class="quick-btn" onclick="sendCmd('btop\n')">Monitor</button>
+            <button class="quick-btn" onclick="sendCmd('tmux new-window\n')">New Tab</button>
+            <button class="quick-btn" onclick="sendCmd('git status\n')">Git</button>
+        </div>
+    </div>
+
+    <div class="install-prompt" id="installPrompt">
+        <span>Install Cloud Terminal as an app?</span>
+        <button onclick="installPWA()">Install</button>
+        <button onclick="dismissInstall()" style="background: transparent; border: 1px solid #30363d;">Later</button>
+    </div>
+
+    <script>
+        // Three.js Background Animation
+        let scene, camera, renderer, particles, frameCount = 0;
+        let mouseX = 0, mouseY = 0;
+
+        function initThree() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById('three-container').appendChild(renderer.domElement);
+
+            // Create particle system
+            const geometry = new THREE.BufferGeometry();
+            const particleCount = 1000;
+            const posArray = new Float32Array(particleCount * 3);
+            
+            for(let i = 0; i < particleCount * 3; i++) {
+                posArray[i] = (Math.random() - 0.5) * 10;
+            }
+            
+            geometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            
+            const material = new THREE.PointsMaterial({
+                size: 0.005,
+                color: 0x7aa2f7,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+            
+            particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+            
+            camera.position.z = 3;
+
+            // Add floating geometry
+            const torusGeometry = new THREE.TorusKnotGeometry(1, 0.3, 100, 16);
+            const torusMaterial = new THREE.MeshBasicMaterial({
+                color: 0xbb9af7,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.1
+            });
+            const torusKnot = new THREE.Mesh(torusGeometry, torusMaterial);
+            scene.add(torusKnot);
+
+            // Mouse movement
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+                mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+            });
+
+            animate();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            frameCount++;
+
+            // Rotate particles
+            particles.rotation.y += 0.0005;
+            particles.rotation.x += 0.0002;
+
+            // Float particles
+            const positions = particles.geometry.attributes.position.array;
+            for(let i = 0; i < positions.length; i += 3) {
+                positions[i + 1] += Math.sin(frameCount * 0.001 + i) * 0.0005;
+            }
+            particles.geometry.attributes.position.needsUpdate = true;
+
+            // Respond to mouse
+            if(scene.children[1]) {
+                scene.children[1].rotation.x += 0.005 + mouseY * 0.001;
+                scene.children[1].rotation.y += 0.005 + mouseX * 0.001;
+            }
+
+            // Update FPS counter
+            if(frameCount % 30 === 0) {
+                const fps = Math.round(1000 / (performance.now() - lastTime) * 30);
+                document.getElementById('fpsCounter').textContent = `${Math.min(fps, 120)} FPS`;
+                lastTime = performance.now();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        let lastTime = performance.now();
+
+        // Terminal functionality
+        async function initTerminal() {
+            try {
+                const response = await fetch('/api/terminal-config');
+                const config = await response.json();
+                
+                const frame = document.getElementById('terminal-frame');
+                frame.src = config.url;
+                
+                frame.onload = () => {
+                    setTimeout(() => {
+                        document.getElementById('loadingScreen').style.opacity = '0';
+                        setTimeout(() => {
+                            document.getElementById('loadingScreen').style.display = 'none';
+                        }, 500);
+                    }, 500);
+                };
+            } catch (error) {
+                console.error('Failed to load terminal config:', error);
+            }
+        }
+
+        function sendCmd(cmd) {
+            const frame = document.getElementById('terminal-frame');
+            frame.contentWindow.postMessage({
+                type: 'input',
+                data: cmd
+            }, '*');
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        // PWA Support
+        let deferredPrompt;
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installPrompt').style.display = 'flex';
+        });
+
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('PWA installed');
+                    }
+                    deferredPrompt = null;
+                    document.getElementById('installPrompt').style.display = 'none';
+                });
+            }
+        }
+
+        function dismissInstall() {
+            document.getElementById('installPrompt').style.display = 'none';
+        }
+
+        // Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').then(reg => {
+                console.log('Service Worker registered');
+            });
+        }
+
+        // Window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize
+        initThree();
+        initTerminal();
+    </script>
+</body>
+</html>
