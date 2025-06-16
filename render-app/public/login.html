@@ -329,7 +329,16 @@
                 console.log('Login result:', result);
                 
                 if (result.success) {
-                    window.location.href = '/';
+                    // Show success message before redirecting
+                    errorMsg.style.background = 'rgba(158, 206, 106, 0.1)';
+                    errorMsg.style.borderColor = 'rgba(158, 206, 106, 0.3)';
+                    errorMsg.style.color = '#9ece6a';
+                    errorMsg.textContent = 'Login successful! You\'ll stay logged in for 30 days.';
+                    errorMsg.style.display = 'block';
+                    
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
                 } else {
                     errorMsg.textContent = result.message || 'Invalid password. Please try again.';
                     errorMsg.style.display = 'block';

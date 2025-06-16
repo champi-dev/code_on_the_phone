@@ -1,5 +1,6 @@
 const express = require('express');
 const session = require('express-session');
+const FileStore = require('session-file-store')(session);
 const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const compression = require('compression');
@@ -7,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const path = require('path');
 const http = require('http');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
@@ -30,15 +32,28 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Session middleware configuration
+// Create sessions directory if it doesn't exist
+const sessionsDir = path.join(__dirname, 'sessions');
+if (!fs.existsSync(sessionsDir)) {
+  fs.mkdirSync(sessionsDir, { recursive: true });
+}
+
+// Session middleware configuration with file store
 const sessionConfig = {
+  store: new FileStore({
+    path: sessionsDir,
+    ttl: 30 * 24 * 60 * 60, // 30 days
+    retries: 5,
+    reapInterval: 60 * 60, // Clean up expired sessions every hour
+    logFn: function(){} // Disable logging
+  }),
   secret: process.env.SESSION_SECRET || 'cloud-terminal-secret-2025',
   resave: false,
   saveUninitialized: false,
   cookie: {
     secure: false, // Set to false for now to work with HTTP
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days - keep logged in for a month
     sameSite: 'lax'
   },
   name: 'sessionId',
@@ -75,6 +90,8 @@ const requireAuth = (req, res, next) => {
   });
   
   if (req.session.authenticated) {
+    // Update last activity time
+    req.session.lastActivity = new Date().toISOString();
     next();
   } else {
     // Check if this is an API request
@@ -88,7 +105,12 @@ const requireAuth = (req, res, next) => {
 
 // Routes
 app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+  // If already authenticated, redirect to main page
+  if (req.session.authenticated) {
+    res.redirect('/');
+  } else {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+  }
 });
 
 app.post('/api/login', async (req, res) => {
@@ -103,13 +125,21 @@ app.post('/api/login', async (req, res) => {
   try {
     if (password && await bcrypt.compare(password, PASSWORD_HASH)) {
       req.session.authenticated = true;
+      req.session.loginTime = new Date().toISOString();
+      req.session.lastActivity = new Date().toISOString();
       req.session.save((err) => {
         if (err) {
           console.error('Session save error:', err);
           res.status(500).json({ success: false, message: 'Session error' });
         } else {
           console.log('Login successful, session saved');
-          res.json({ success: true });
+          res.json({ 
+            success: true,
+            sessionInfo: {
+              expiresIn: '30 days',
+              persistent: true
+            }
+          });
         }
       });
     } else {
@@ -123,8 +153,13 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => {
-  req.session.destroy();
-  res.json({ success: true });
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Error destroying session:', err);
+    }
+    res.clearCookie('sessionId');
+    res.json({ success: true });
+  });
 });
 
 app.get('/api/terminal-config', requireAuth, (req, res) => {
@@ -449,6 +484,16 @@ app.get('/api/terminal-debug', requireAuth, (req, res) => {
       'Check browser console for errors',
       'Ensure ttyd is running with: ttyd -W -i 0.0.0.0 -p 7681 bash'
     ]
+  });
+});
+
+// Session status endpoint
+app.get('/api/session-status', requireAuth, (req, res) => {
+  res.json({
+    authenticated: true,
+    loginTime: req.session.loginTime,
+    lastActivity: req.session.lastActivity,
+    sessionExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
   });
 });
 
