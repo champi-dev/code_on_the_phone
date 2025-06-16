@@ -481,10 +481,51 @@
 
         function sendCmd(cmd) {
             const frame = document.getElementById('terminal-frame');
-            frame.contentWindow.postMessage({
-                type: 'input',
-                data: cmd
-            }, '*');
+            if (!frame || !frame.contentWindow) {
+                console.error('Terminal frame not ready');
+                return;
+            }
+            
+            // Try multiple methods to send the command
+            try {
+                // Method 1: Direct ttyd API if available
+                if (frame.contentWindow.term && frame.contentWindow.term.paste) {
+                    frame.contentWindow.term.paste(cmd);
+                    return;
+                }
+                
+                // Method 2: Send via ttyd's input method
+                if (frame.contentWindow.send) {
+                    frame.contentWindow.send(cmd);
+                    return;
+                }
+                
+                // Method 3: Dispatch keyboard events
+                const doc = frame.contentDocument || frame.contentWindow.document;
+                const activeElement = doc.activeElement || doc.body;
+                
+                for (let i = 0; i < cmd.length; i++) {
+                    const char = cmd[i];
+                    const keyEvent = new KeyboardEvent('keypress', {
+                        key: char,
+                        charCode: char.charCodeAt(0),
+                        keyCode: char.charCodeAt(0),
+                        which: char.charCodeAt(0),
+                        bubbles: true
+                    });
+                    activeElement.dispatchEvent(keyEvent);
+                }
+            } catch (e) {
+                console.error('Failed to send command:', e);
+                
+                // Fallback: Try to focus the terminal and use execCommand
+                try {
+                    frame.contentWindow.focus();
+                    frame.contentDocument.execCommand('insertText', false, cmd);
+                } catch (e2) {
+                    console.error('Fallback also failed:', e2);
+                }
+            }
         }
 
         async function logout() {
@@ -532,6 +573,40 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
+        // Debug terminal iframe
+        function debugTerminal() {
+            const frame = document.getElementById('terminal-frame');
+            if (!frame) {
+                console.log('No terminal frame found');
+                return;
+            }
+            
+            console.log('Terminal frame:', frame);
+            console.log('Frame src:', frame.src);
+            console.log('Frame contentWindow:', frame.contentWindow);
+            
+            try {
+                console.log('Frame document:', frame.contentDocument);
+                console.log('Available in frame:', Object.keys(frame.contentWindow));
+                
+                // Look for ttyd specific objects
+                if (frame.contentWindow.term) {
+                    console.log('Found term object:', frame.contentWindow.term);
+                }
+                if (frame.contentWindow.Terminal) {
+                    console.log('Found Terminal constructor');
+                }
+                if (frame.contentWindow.fit) {
+                    console.log('Found fit addon');
+                }
+            } catch (e) {
+                console.log('Cannot access frame content (cross-origin):', e.message);
+            }
+        }
+        
+        // Make debug function globally available
+        window.debugTerminal = debugTerminal;
+        
         // Initialize when page is fully loaded
         window.addEventListener('DOMContentLoaded', () => {
             // Check if THREE is loaded

@@ -6,6 +6,7 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const path = require('path');
+const http = require('http');
 require('dotenv').config();
 
 const app = express();
@@ -29,8 +30,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Session configuration
-app.use(session({
+// Session middleware configuration
+const sessionConfig = {
   secret: process.env.SESSION_SECRET || 'cloud-terminal-secret-2025',
   resave: false,
   saveUninitialized: false,
@@ -42,7 +43,10 @@ app.use(session({
   },
   name: 'sessionId',
   proxy: true // Trust the reverse proxy
-}));
+};
+
+const sessionMiddleware = session(sessionConfig);
+app.use(sessionMiddleware);
 
 // Security headers with CSP for Three.js
 app.use(helmet({
@@ -261,20 +265,27 @@ drwxr-xr-x 2 cloud cloud 4096 Jun 16 00:00 projects
   next();
 });
 
-// Terminal proxy with timeout handling
-app.use('/terminal-proxy', requireAuth, createProxyMiddleware({
+// Terminal proxy middleware
+const terminalProxy = createProxyMiddleware({
   target: `http://${TERMINAL_HOST}:${TERMINAL_PORT}`,
   ws: true,
   changeOrigin: true,
   pathRewrite: {
     '^/terminal-proxy': ''
   },
-  timeout: 10000, // 10 second timeout
-  proxyTimeout: 10000,
+  timeout: 30000, // 30 second timeout
+  proxyTimeout: 30000,
   logLevel: 'debug',
+  // Handle WebSocket upgrade
+  onProxyReqWs: (proxyReq, req, socket, options, head) => {
+    console.log('WebSocket upgrade request');
+    // Add authentication headers if needed
+    proxyReq.setHeader('X-Forwarded-For', req.socket.remoteAddress);
+  },
   onProxyReq: (proxyReq, req, res) => {
     console.log('Proxy request to:', `http://${TERMINAL_HOST}:${TERMINAL_PORT}${req.url}`);
-    console.log('Proxy headers:', proxyReq.getHeaders());
+    // Ensure proper headers for ttyd
+    proxyReq.setHeader('Host', `${TERMINAL_HOST}:${TERMINAL_PORT}`);
   },
   onProxyRes: (proxyRes, req, res) => {
     console.log('Proxy response status:', proxyRes.statusCode);
@@ -283,7 +294,6 @@ app.use('/terminal-proxy', requireAuth, createProxyMiddleware({
     console.error('Proxy error:', err.message);
     console.error('Error code:', err.code);
     console.error('Terminal host:', TERMINAL_HOST, 'Port:', TERMINAL_PORT);
-    console.error('Full error:', err);
     
     // Send a fallback HTML page instead of error
     res.status(200).send(`
@@ -354,11 +364,31 @@ drwxr-xr-x   3 user  staff    96 Jun 16 00:00 node_modules
       </body>
       </html>
     `);
-  },
-  onProxyReq: (proxyReq, req, res) => {
-    console.log('Proxying to:', `http://${TERMINAL_HOST}:${TERMINAL_PORT}${req.url}`);
   }
-}));
+});
+
+// Apply terminal proxy to route
+app.use('/terminal-proxy', requireAuth, terminalProxy);
+
+// Handle WebSocket upgrade for terminal
+server.on('upgrade', (request, socket, head) => {
+  console.log('WebSocket upgrade request for:', request.url);
+  
+  if (request.url.startsWith('/terminal-proxy')) {
+    // Parse cookies and check session
+    const cookies = request.headers.cookie || '';
+    const sessionId = cookies.split(';').find(c => c.trim().startsWith('sessionId='));
+    
+    if (sessionId) {
+      console.log('WebSocket has session cookie, allowing upgrade');
+      terminalProxy.upgrade(request, socket, head);
+    } else {
+      console.log('WebSocket missing auth, rejecting');
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+    }
+  }
+});
 
 // Service worker and manifest
 app.get('/sw.js', (req, res) => {
@@ -427,12 +457,31 @@ app.get('/api/proxy-test', requireAuth, async (req, res) => {
   });
 });
 
+// Debug terminal input
+app.get('/api/terminal-debug', requireAuth, (req, res) => {
+  res.json({
+    terminalUrl: `http://${TERMINAL_HOST}:${TERMINAL_PORT}`,
+    proxyUrl: '/terminal-proxy',
+    wsUrl: `ws://${TERMINAL_HOST}:${TERMINAL_PORT}/ws`,
+    instructions: [
+      'Terminal is loaded via iframe proxy',
+      'WebSocket connection needed for input',
+      'Check browser console for errors',
+      'Ensure ttyd is running with: ttyd -W -i 0.0.0.0 -p 7681 bash'
+    ]
+  });
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-const server = app.listen(PORT, () => {
+// Create HTTP server for WebSocket support
+const server = http.createServer(app);
+
+// Start server
+server.listen(PORT, () => {
   console.log(`Cloud Terminal 3D running on port ${PORT}`);
   console.log(`Terminal backend: ${TERMINAL_HOST}:${TERMINAL_PORT}`);
 });
