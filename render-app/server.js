@@ -128,12 +128,127 @@ app.get('/api/terminal-config', requireAuth, (req, res) => {
   res.json({
     host: TERMINAL_HOST,
     port: TERMINAL_PORT,
-    url: '/terminal-proxy'
+    url: '/terminal-proxy',
+    // Add a flag to indicate terminal might be offline
+    checkHealth: true
   });
 });
 
 app.get('/', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Terminal health check
+app.get('/api/terminal-health', requireAuth, async (req, res) => {
+  const http = require('http');
+  
+  const checkTerminal = new Promise((resolve) => {
+    const options = {
+      hostname: TERMINAL_HOST,
+      port: TERMINAL_PORT,
+      path: '/',
+      method: 'GET',
+      timeout: 5000
+    };
+    
+    const req = http.request(options, (response) => {
+      resolve({ available: response.statusCode < 500 });
+    });
+    
+    req.on('error', () => resolve({ available: false }));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve({ available: false });
+    });
+    
+    req.end();
+  });
+  
+  const result = await checkTerminal;
+  res.json(result);
+});
+
+// Handle fallback requests directly
+app.get('/terminal-proxy', requireAuth, (req, res) => {
+  if (req.query.fallback === 'true') {
+    // Return fallback UI directly
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body {
+            margin: 0;
+            background: #0d1117;
+            color: #c9d1d9;
+            font-family: monospace;
+            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+          }
+          .terminal-info {
+            background: rgba(122, 162, 247, 0.1);
+            border: 1px solid rgba(122, 162, 247, 0.3);
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+          }
+          .terminal-demo {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 20px;
+            height: calc(100% - 120px);
+            overflow: auto;
+          }
+          .prompt {
+            color: #7ee787;
+          }
+          pre {
+            margin: 0;
+            white-space: pre-wrap;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="terminal-info">
+          ℹ️ Terminal server is currently offline. This is a demo interface.
+        </div>
+        <div class="terminal-demo">
+          <pre><span class="prompt">cloud@terminal:~$</span> echo "Welcome to Cloud Terminal 3D!"
+Welcome to Cloud Terminal 3D!
+
+<span class="prompt">cloud@terminal:~$</span> date
+${new Date().toString()}
+
+<span class="prompt">cloud@terminal:~$</span> uname -a
+Linux cloud-terminal 5.15.0 #1 SMP x86_64 GNU/Linux
+
+<span class="prompt">cloud@terminal:~$</span> ls -la
+total 48
+drwxr-xr-x 6 cloud cloud 4096 Jun 16 00:00 .
+drwxr-xr-x 3 root  root  4096 Jun 16 00:00 ..
+-rw-r--r-- 1 cloud cloud  220 Jun 16 00:00 .bash_logout
+-rw-r--r-- 1 cloud cloud 3771 Jun 16 00:00 .bashrc
+drwxr-xr-x 2 cloud cloud 4096 Jun 16 00:00 .config
+drwxr-xr-x 3 cloud cloud 4096 Jun 16 00:00 .local
+-rw-r--r-- 1 cloud cloud  807 Jun 16 00:00 .profile
+drwxr-xr-x 2 cloud cloud 4096 Jun 16 00:00 projects
+
+<span class="prompt">cloud@terminal:~$</span> # To connect a real terminal:
+<span class="prompt">cloud@terminal:~$</span> # 1. Set up ttyd server
+<span class="prompt">cloud@terminal:~$</span> # 2. Update TERMINAL_HOST in Render
+
+<span class="prompt">cloud@terminal:~$</span> _</pre>
+        </div>
+      </body>
+      </html>
+    `);
+    return;
+  }
+  
+  // Otherwise, continue to next middleware
+  next();
 });
 
 // Terminal proxy with timeout handling

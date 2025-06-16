@@ -432,6 +432,30 @@
                 
                 const config = await response.json();
                 
+                // Check terminal health first if needed
+                if (config.checkHealth) {
+                    try {
+                        const healthResponse = await fetch('/api/terminal-health', {
+                            credentials: 'same-origin'
+                        });
+                        const health = await healthResponse.json();
+                        
+                        if (!health.available) {
+                            console.log('Terminal server is offline, loading fallback UI');
+                            // Load the fallback directly without causing 504
+                            const frame = document.getElementById('terminal-frame');
+                            frame.src = '/terminal-proxy?fallback=true';
+                            
+                            setTimeout(() => {
+                                document.getElementById('loadingScreen').style.display = 'none';
+                            }, 500);
+                            return;
+                        }
+                    } catch (err) {
+                        console.log('Health check failed, assuming terminal is offline');
+                    }
+                }
+                
                 const frame = document.getElementById('terminal-frame');
                 frame.src = config.url;
                 
