@@ -90,7 +90,6 @@
       }
 
       .terminal-container {
-        opacity: 0.6;
         position: fixed;
         top: 50px;
         left: 0;
@@ -376,9 +375,9 @@
       ></iframe>
     </div>
 
-    <div class="quick-actions">
-      <!-- Keyboard controls section -->
-      <button class="quick-action keyboard-key" onclick="sendKey('Escape')" title="ESC">
+    <div class="quick-actions" id="quickActionsBar">
+      <!-- Keyboard controls section - These should be visible! -->
+      <button class="quick-action keyboard-key" onclick="sendKey('Escape')" title="ESC" style="background: #ff6b6b; color: white;">
         ESC
       </button>
       <button class="quick-action keyboard-key" id="ctrlKey" onclick="toggleCtrl()" title="Ctrl (toggle)">
@@ -436,6 +435,9 @@
       </button>
       <button class="quick-action" onclick="sendCommand('btop')">
         Monitor
+      </button>
+      <button class="quick-action" onclick="debugKeyboardControls()" style="background: #7aa2f7; color: white;">
+        🔍 Debug KB
       </button>
     </div>
 
@@ -506,6 +508,31 @@
       
       let ctrlPressed = false;
 
+      // Debug function to check keyboard controls
+      function debugKeyboardControls() {
+        const quickActions = document.getElementById('quickActionsBar');
+        const keyboardButtons = document.querySelectorAll('.keyboard-key');
+        
+        console.log('=== KEYBOARD CONTROLS DEBUG ===');
+        console.log('Quick actions bar found:', !!quickActions);
+        console.log('Keyboard buttons found:', keyboardButtons.length);
+        
+        if (quickActions) {
+          const styles = window.getComputedStyle(quickActions);
+          console.log('Quick actions visibility:', styles.visibility);
+          console.log('Quick actions display:', styles.display);
+          console.log('Quick actions position:', quickActions.getBoundingClientRect());
+          
+          // Force scroll to beginning to show keyboard controls
+          quickActions.scrollLeft = 0;
+          console.log('Forced scroll to start of quick actions');
+        }
+        
+        keyboardButtons.forEach((btn, i) => {
+          console.log(`Button ${i}: "${btn.textContent.trim()}" - Visible: ${btn.offsetWidth > 0}`);
+        });
+      }
+
       // Hide loading screen when terminal loads
       terminalFrame.onload = () => {
         setTimeout(() => {
@@ -514,6 +541,9 @@
             loadingScreen.style.display = "none";
           }, 300);
         }, 500);
+        
+        // Debug keyboard controls after load
+        setTimeout(debugKeyboardControls, 1000);
         
         // Optimize iframe scrolling performance
         try {
