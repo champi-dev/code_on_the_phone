@@ -417,7 +417,9 @@
         // Terminal functionality
         async function initTerminal() {
             try {
-                const response = await fetch('/api/terminal-config');
+                const response = await fetch('/api/terminal-config', {
+                    credentials: 'same-origin'
+                });
                 
                 if (!response.ok) {
                     if (response.status === 401) {

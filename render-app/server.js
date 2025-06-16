@@ -34,10 +34,13 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: false, // Set to false for now to work with HTTP
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'lax'
+  },
+  name: 'sessionId',
+  proxy: true // Trust the reverse proxy
 }));
 
 // Security headers with CSP for Three.js
@@ -59,6 +62,13 @@ app.use(helmet({
 
 // Authentication middleware
 const requireAuth = (req, res, next) => {
+  console.log('Auth check:', {
+    path: req.path,
+    sessionId: req.sessionID,
+    authenticated: req.session.authenticated,
+    session: req.session
+  });
+  
   if (req.session.authenticated) {
     next();
   } else {
@@ -88,8 +98,15 @@ app.post('/api/login', async (req, res) => {
   try {
     if (password && await bcrypt.compare(password, PASSWORD_HASH)) {
       req.session.authenticated = true;
-      console.log('Login successful');
-      res.json({ success: true });
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error:', err);
+          res.status(500).json({ success: false, message: 'Session error' });
+        } else {
+          console.log('Login successful, session saved');
+          res.json({ success: true });
+        }
+      });
     } else {
       console.log('Login failed - password mismatch');
       res.status(401).json({ success: false, message: 'Invalid password' });
