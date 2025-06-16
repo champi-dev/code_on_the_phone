@@ -484,8 +484,10 @@
         let time = 0;
 
         function initThree() {
-            scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0x0d1117, 1, 15);
+            console.log('initThree called, creating scene...');
+            try {
+                scene = new THREE.Scene();
+                scene.fog = new THREE.Fog(0x0d1117, 1, 15);
             
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             
@@ -644,6 +646,10 @@
             });
 
             animate();
+                console.log('Three.js initialization complete');
+            } catch (error) {
+                console.error('Error initializing Three.js:', error);
+            }
         }
         
         function createGlowTexture() {
@@ -1173,15 +1179,24 @@
         
         // Initialize when page is fully loaded
         window.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded, checking THREE.js...');
             // Check if THREE is loaded
             if (typeof THREE !== 'undefined') {
+                console.log('THREE.js found, initializing...');
                 initThree();
             } else {
+                console.log('THREE.js not found yet, waiting...');
                 // Fallback: wait for script to load
+                let attempts = 0;
                 const checkThree = setInterval(() => {
+                    attempts++;
                     if (typeof THREE !== 'undefined') {
+                        console.log('THREE.js loaded after', attempts, 'attempts');
                         clearInterval(checkThree);
                         initThree();
+                    } else if (attempts > 50) {
+                        console.error('THREE.js failed to load after 5 seconds');
+                        clearInterval(checkThree);
                     }
                 }, 100);
             }
