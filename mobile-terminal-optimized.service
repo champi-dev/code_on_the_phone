@@ -18,9 +18,13 @@ ExecStart=/usr/local/bin/ttyd \
   -t cursorBlink=true \
   -t cursorStyle=block \
   -t allowTransparency=true \
+  -t windowsMode=false \
+  -t macOptionIsMeta=true \
+  -t rightClickSelectsWord=false \
+  -t 'windowOptions={"setWinSizePixels":false}' \
   -t 'theme={"background": "#0d1117", "foreground": "#c9d1d9", "cursor": "#c9d1d9", "selection": "#33467C", "black": "#15161E", "red": "#f7768e", "green": "#9ece6a", "yellow": "#e0af68", "blue": "#7aa2f7", "magenta": "#bb9af7", "cyan": "#7dcfff", "white": "#a9b1d6"}' \
   --check-origin=false \
-  --max-clients=10 \
+  --max-clients=5 \
   /usr/bin/tmux new -A -s main
 
 Restart=always

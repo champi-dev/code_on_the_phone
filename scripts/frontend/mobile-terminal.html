@@ -501,6 +501,17 @@
               fontSize: 14,
               lineHeight: 1.2,
               allowTransparency: true,
+              // Critical for heavy output performance
+              rendererType: 'canvas',
+              windowsMode: false,
+              macOptionIsMeta: true,
+              rightClickSelectsWord: false,
+              // Buffer and output throttling
+              windowOptions: {
+                setWinSizePixels: false
+              },
+              // Optimize for mobile performance during heavy output
+              optimizeForThroughput: true,
               theme: {
                 background: '#0d1117',
                 foreground: '#c9d1d9',
@@ -517,10 +528,24 @@
               scrollSensitivity: 5,
               fastScrollSensitivity: 10,
               scrollback: 1000,
-              smoothScrollDuration: 0
+              smoothScrollDuration: 0,
+              rendererType: 'canvas',
+              optimizeForThroughput: true
             }
           }, '*');
         }
+        
+        // Add throttling for heavy output to prevent UI blocking
+        let outputThrottleTimer = null;
+        terminalFrame.contentWindow.postMessage({
+          type: 'throttle-config',
+          config: {
+            enabled: true,
+            maxLinesPerFrame: 50,
+            frameDelay: 16, // ~60fps
+            scrollThreshold: 100
+          }
+        }, '*');
       };
 
       function sendCommand(command) {

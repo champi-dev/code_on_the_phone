@@ -230,7 +230,16 @@
               smoothScrollDuration: 0,
               rendererType: 'canvas',
               fontSize: 14,
-              lineHeight: 1.2
+              lineHeight: 1.2,
+              // Critical for heavy output performance
+              windowsMode: false,
+              macOptionIsMeta: true,
+              rightClickSelectsWord: false,
+              windowOptions: {
+                setWinSizePixels: false
+              },
+              // Optimize for mobile performance during heavy output
+              optimizeForThroughput: true
             }
           }, '*');
         } catch (e) {
@@ -241,10 +250,23 @@
               scrollSensitivity: 5,
               fastScrollSensitivity: 10,
               scrollback: 1000,
-              smoothScrollDuration: 0
+              smoothScrollDuration: 0,
+              rendererType: 'canvas',
+              optimizeForThroughput: true
             }
           }, '*');
         }
+        
+        // Add throttling for heavy output to prevent UI blocking
+        frame.contentWindow.postMessage({
+          type: 'throttle-config',
+          config: {
+            enabled: true,
+            maxLinesPerFrame: 50,
+            frameDelay: 16, // ~60fps
+            scrollThreshold: 100
+          }
+        }, '*');
       };
 
       frame.onerror = () => {

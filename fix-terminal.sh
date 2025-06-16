@@ -8,8 +8,8 @@ ps aux | grep ttyd
 # Kill any existing ttyd processes
 pkill ttyd
 
-# Start ttyd properly with mobile optimizations
-echo "Starting ttyd with mobile optimizations..."
+# Start ttyd properly with mobile optimizations and heavy output handling
+echo "Starting ttyd with mobile optimizations and output throttling..."
 ttyd -p 7681 \
   -t fontSize=14 \
   -t lineHeight=1.2 \
@@ -19,7 +19,13 @@ ttyd -p 7681 \
   -t fastScrollSensitivity=10 \
   -t scrollSensitivity=5 \
   -t smoothScrollDuration=0 \
+  -t windowsMode=false \
+  -t macOptionIsMeta=true \
+  -t rightClickSelectsWord=false \
+  -t 'windowOptions={"setWinSizePixels":false}' \
   -t 'theme={"background": "#0d1117", "foreground": "#c9d1d9", "cursor": "#c9d1d9", "selection": "#33467C"}' \
+  --max-clients=5 \
+  --once \
   /usr/bin/bash &
 
 # Check firewall
