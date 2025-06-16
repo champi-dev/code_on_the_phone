@@ -8,24 +8,20 @@ ps aux | grep ttyd
 # Kill any existing ttyd processes
 pkill ttyd
 
-# Start ttyd properly with mobile optimizations and heavy output handling
-echo "Starting ttyd with mobile optimizations and output throttling..."
+# Start ttyd with iframe-compatible configuration (keyboard input FIXED)
+echo "Starting ttyd with iframe-compatible settings..."
 ttyd -p 7681 \
   -t fontSize=14 \
   -t lineHeight=1.2 \
   -t bellStyle=none \
   -t scrollback=1000 \
-  -t rendererType=canvas \
   -t fastScrollSensitivity=10 \
   -t scrollSensitivity=5 \
   -t smoothScrollDuration=0 \
-  -t windowsMode=false \
-  -t macOptionIsMeta=true \
-  -t rightClickSelectsWord=false \
-  -t 'windowOptions={"setWinSizePixels":false}' \
+  -t cursorBlink=true \
   -t 'theme={"background": "#0d1117", "foreground": "#c9d1d9", "cursor": "#c9d1d9", "selection": "#33467C"}' \
-  --max-clients=5 \
-  --once \
+  --check-origin=false \
+  --max-clients=10 \
   /usr/bin/bash &
 
 # Check firewall

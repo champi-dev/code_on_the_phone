@@ -220,7 +220,7 @@
           `;
           iframeDoc.head.appendChild(style);
           
-          // Send configuration to xterm.js for better performance
+          // Send configuration to xterm.js - FIXED for iframe keyboard input
           frame.contentWindow.postMessage({
             type: 'configure',
             config: {
@@ -228,18 +228,14 @@
               fastScrollSensitivity: 10,
               scrollback: 1000,
               smoothScrollDuration: 0,
-              rendererType: 'canvas',
+              // REMOVED: rendererType: 'canvas' - breaks keyboard input in iframes
               fontSize: 14,
               lineHeight: 1.2,
-              // Critical for heavy output performance
-              windowsMode: false,
-              macOptionIsMeta: true,
-              rightClickSelectsWord: false,
-              windowOptions: {
-                setWinSizePixels: false
-              },
-              // Optimize for mobile performance during heavy output
-              optimizeForThroughput: true
+              cursorBlink: true,
+              allowTransparency: false,
+              // REMOVED: windowsMode, macOptionIsMeta, rightClickSelectsWord
+              // REMOVED: windowOptions - can break input positioning  
+              // REMOVED: optimizeForThroughput - may affect input processing
             }
           }, '*');
         } catch (e) {
@@ -251,20 +247,21 @@
               fastScrollSensitivity: 10,
               scrollback: 1000,
               smoothScrollDuration: 0,
-              rendererType: 'canvas',
-              optimizeForThroughput: true
+              // REMOVED: rendererType: 'canvas' - breaks keyboard input
+              // REMOVED: optimizeForThroughput - may affect input
+              cursorBlink: true,
+              allowTransparency: false
             }
           }, '*');
         }
         
-        // Add throttling for heavy output to prevent UI blocking
+        // Add iframe focus management for keyboard input
         frame.contentWindow.postMessage({
-          type: 'throttle-config',
+          type: 'setup-focus',
           config: {
-            enabled: true,
-            maxLinesPerFrame: 50,
-            frameDelay: 16, // ~60fps
-            scrollThreshold: 100
+            autoFocus: true,
+            focusOnClick: true,
+            focusOnVisible: true
           }
         }, '*');
       };

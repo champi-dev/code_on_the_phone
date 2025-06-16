@@ -486,7 +486,7 @@
           `;
           iframeDoc.head.appendChild(style);
           
-          // Send configuration to xterm.js
+          // Send configuration to xterm.js - FIXED for iframe keyboard input
           terminalFrame.contentWindow.postMessage({
             type: 'configure',
             config: {
@@ -500,18 +500,11 @@
               bellStyle: 'none',
               fontSize: 14,
               lineHeight: 1.2,
-              allowTransparency: true,
-              // Critical for heavy output performance
-              rendererType: 'canvas',
-              windowsMode: false,
-              macOptionIsMeta: true,
-              rightClickSelectsWord: false,
-              // Buffer and output throttling
-              windowOptions: {
-                setWinSizePixels: false
-              },
-              // Optimize for mobile performance during heavy output
-              optimizeForThroughput: true,
+              allowTransparency: false,
+              // REMOVED: rendererType: 'canvas' - breaks keyboard input in iframes
+              // REMOVED: windowsMode, macOptionIsMeta, rightClickSelectsWord
+              // REMOVED: windowOptions - can break input positioning
+              // REMOVED: optimizeForThroughput - may affect input processing
               theme: {
                 background: '#0d1117',
                 foreground: '#c9d1d9',
@@ -529,21 +522,21 @@
               fastScrollSensitivity: 10,
               scrollback: 1000,
               smoothScrollDuration: 0,
-              rendererType: 'canvas',
-              optimizeForThroughput: true
+              // REMOVED: rendererType: 'canvas' - breaks keyboard input
+              // REMOVED: optimizeForThroughput - may affect input
+              cursorBlink: true,
+              allowTransparency: false
             }
           }, '*');
         }
         
-        // Add throttling for heavy output to prevent UI blocking
-        let outputThrottleTimer = null;
+        // Add iframe focus management for keyboard input
         terminalFrame.contentWindow.postMessage({
-          type: 'throttle-config',
+          type: 'setup-focus',
           config: {
-            enabled: true,
-            maxLinesPerFrame: 50,
-            frameDelay: 16, // ~60fps
-            scrollThreshold: 100
+            autoFocus: true,
+            focusOnClick: true,
+            focusOnVisible: true
           }
         }, '*');
       };
