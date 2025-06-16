@@ -198,7 +198,7 @@
             }
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
 </head>
 <body>
     <div id="three-bg"></div>
@@ -222,7 +222,7 @@
         <form id="loginForm">
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" autofocus required>
+                <input type="password" id="password" name="password" autocomplete="current-password" autofocus required>
             </div>
             
             <button type="submit" class="login-btn">Access Terminal</button>
@@ -281,7 +281,16 @@
             animate();
         }
 
-        initThree();
+        // Initialize Three.js when loaded
+        if (typeof THREE !== 'undefined') {
+            initThree();
+        } else {
+            window.addEventListener('load', () => {
+                if (typeof THREE !== 'undefined') {
+                    initThree();
+                }
+            });
+        }
 
         // Login functionality
         document.getElementById('loginForm').addEventListener('submit', async (e) => {

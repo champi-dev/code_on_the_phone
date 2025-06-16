@@ -3,7 +3,7 @@ const CACHE_NAME = 'cloud-terminal-v1';
 const urlsToCache = [
   '/manifest.json',
   '/icon.svg',
-  'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js'
+  'https://unpkg.com/three@0.161.0/build/three.min.js'
 ];
 
 // Install event - cache resources
