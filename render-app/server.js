@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 const path = require('path');
 require('dotenv').config();
 
@@ -51,8 +52,8 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      connectSrc: ["'self'", "ws:", "wss:", `http://${TERMINAL_HOST}:${TERMINAL_PORT}`],
-      frameSrc: ["'self'", `http://${TERMINAL_HOST}:${TERMINAL_PORT}`],
+      connectSrc: ["'self'", "ws:", "wss:"],
+      frameSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "blob:"],
       workerSrc: ["'self'", "blob:"],
     },
@@ -123,16 +124,31 @@ app.post('/api/logout', (req, res) => {
 });
 
 app.get('/api/terminal-config', requireAuth, (req, res) => {
+  // Use proxy endpoint for HTTPS sites
   res.json({
     host: TERMINAL_HOST,
     port: TERMINAL_PORT,
-    url: `http://${TERMINAL_HOST}:${TERMINAL_PORT}`
+    url: '/terminal-proxy'
   });
 });
 
 app.get('/', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+// Terminal proxy
+app.use('/terminal-proxy', requireAuth, createProxyMiddleware({
+  target: `http://${TERMINAL_HOST}:${TERMINAL_PORT}`,
+  ws: true,
+  changeOrigin: true,
+  pathRewrite: {
+    '^/terminal-proxy': ''
+  },
+  onError: (err, req, res) => {
+    console.error('Proxy error:', err);
+    res.status(500).send('Terminal proxy error');
+  }
+}));
 
 // Service worker and manifest
 app.get('/sw.js', (req, res) => {
