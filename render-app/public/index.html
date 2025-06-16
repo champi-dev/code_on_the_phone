@@ -443,6 +443,11 @@
                         }, 500);
                     }, 500);
                 };
+                
+                frame.onerror = (error) => {
+                    console.error('Terminal frame error:', error);
+                    document.getElementById('loadingScreen').style.display = 'none';
+                };
             } catch (error) {
                 console.error('Failed to load terminal config:', error);
                 // Hide loading screen even on error

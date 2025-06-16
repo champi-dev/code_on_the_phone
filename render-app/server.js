@@ -136,7 +136,7 @@ app.get('/', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Terminal proxy
+// Terminal proxy with timeout handling
 app.use('/terminal-proxy', requireAuth, createProxyMiddleware({
   target: `http://${TERMINAL_HOST}:${TERMINAL_PORT}`,
   ws: true,
@@ -144,9 +144,84 @@ app.use('/terminal-proxy', requireAuth, createProxyMiddleware({
   pathRewrite: {
     '^/terminal-proxy': ''
   },
+  timeout: 10000, // 10 second timeout
+  proxyTimeout: 10000,
   onError: (err, req, res) => {
     console.error('Proxy error:', err);
-    res.status(500).send('Terminal proxy error');
+    console.error('Terminal host:', TERMINAL_HOST, 'Port:', TERMINAL_PORT);
+    
+    // Send a fallback HTML page instead of error
+    res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body {
+            margin: 0;
+            background: #0d1117;
+            color: #c9d1d9;
+            font-family: monospace;
+            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+          }
+          .terminal-error {
+            background: rgba(248, 81, 73, 0.1);
+            border: 1px solid rgba(248, 81, 73, 0.3);
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+          }
+          .terminal-demo {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 20px;
+            height: calc(100% - 120px);
+            overflow: auto;
+          }
+          .prompt {
+            color: #7ee787;
+          }
+          pre {
+            margin: 0;
+            white-space: pre-wrap;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="terminal-error">
+          ⚠️ Terminal server unavailable. The external terminal service at ${TERMINAL_HOST}:${TERMINAL_PORT} is not responding.
+        </div>
+        <div class="terminal-demo">
+          <pre><span class="prompt">$</span> # Terminal Demo Mode
+<span class="prompt">$</span> echo "Welcome to Cloud Terminal 3D!"
+Welcome to Cloud Terminal 3D!
+
+<span class="prompt">$</span> # The real terminal server is currently offline
+<span class="prompt">$</span> # This is a demo interface showing what it would look like
+
+<span class="prompt">$</span> ls -la
+total 64
+drwxr-xr-x   5 user  staff   160 Jun 16 00:00 .
+drwxr-xr-x  10 user  staff   320 Jun 16 00:00 ..
+-rw-r--r--   1 user  staff  1234 Jun 16 00:00 app.js
+-rw-r--r--   1 user  staff  2048 Jun 16 00:00 package.json
+drwxr-xr-x   3 user  staff    96 Jun 16 00:00 node_modules
+
+<span class="prompt">$</span> # To set up your own terminal server:
+<span class="prompt">$</span> # 1. Install ttyd: https://github.com/tsl0922/ttyd
+<span class="prompt">$</span> # 2. Run: ttyd -p 7681 bash
+<span class="prompt">$</span> # 3. Update TERMINAL_HOST in Render environment variables
+
+<span class="prompt">$</span> _</pre>
+        </div>
+      </body>
+      </html>
+    `);
+  },
+  onProxyReq: (proxyReq, req, res) => {
+    console.log('Proxying to:', `http://${TERMINAL_HOST}:${TERMINAL_PORT}${req.url}`);
   }
 }));
 
