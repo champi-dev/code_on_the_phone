@@ -261,9 +261,19 @@ app.use('/terminal-proxy', requireAuth, createProxyMiddleware({
   },
   timeout: 10000, // 10 second timeout
   proxyTimeout: 10000,
+  logLevel: 'debug',
+  onProxyReq: (proxyReq, req, res) => {
+    console.log('Proxy request to:', `http://${TERMINAL_HOST}:${TERMINAL_PORT}${req.url}`);
+    console.log('Proxy headers:', proxyReq.getHeaders());
+  },
+  onProxyRes: (proxyRes, req, res) => {
+    console.log('Proxy response status:', proxyRes.statusCode);
+  },
   onError: (err, req, res) => {
-    console.error('Proxy error:', err);
+    console.error('Proxy error:', err.message);
+    console.error('Error code:', err.code);
     console.error('Terminal host:', TERMINAL_HOST, 'Port:', TERMINAL_PORT);
+    console.error('Full error:', err);
     
     // Send a fallback HTML page instead of error
     res.status(200).send(`
