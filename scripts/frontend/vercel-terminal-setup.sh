@@ -131,6 +131,7 @@ export default function Terminal() {
         }
         
         .terminal-container {
+          opacity: 0.6;
           height: 100vh;
           display: flex;
           flex-direction: column;

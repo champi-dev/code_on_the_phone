@@ -198,6 +198,7 @@ cat > render-terminal-app/public/index.html << 'HTML'
         }
 
         .terminal-container {
+            opacity: 0.6;
             position: absolute;
             top: 0;
             left: 0;

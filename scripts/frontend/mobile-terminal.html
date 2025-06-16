@@ -1,433 +1,532 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <title>Cloud Terminal</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #0d1117;
-            color: #c9d1d9;
-            overflow: hidden;
-            position: fixed;
-            width: 100%;
-            height: 100%;
-        }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background-color: #0d1117;
+        color: #c9d1d9;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+      }
 
-        .terminal-header {
-            background: linear-gradient(to bottom, #161b22 0%, #0d1117 100%);
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid #30363d;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            height: 50px;
-        }
+      .terminal-header {
+        background: linear-gradient(to bottom, #161b22 0%, #0d1117 100%);
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #30363d;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        height: 50px;
+      }
 
+      .terminal-title {
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .terminal-icon {
+        width: 20px;
+        height: 20px;
+        background: linear-gradient(135deg, #7aa2f7 0%, #bb9af7 100%);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .terminal-controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .control-btn {
+        background: #21262d;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 6px 12px;
+        color: #c9d1d9;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .control-btn:hover {
+        background: #30363d;
+        border-color: #8b949e;
+      }
+
+      .control-btn:active {
+        transform: scale(0.95);
+      }
+
+      .terminal-container {
+        opacity: 0.6;
+        position: fixed;
+        top: 50px;
+        left: 0;
+        right: 0;
+        bottom: 60px;
+        background: #0d1117;
+      }
+
+      #terminal-frame {
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: #0d1117;
+      }
+
+      .quick-actions {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #161b22;
+        border-top: 1px solid #30363d;
+        padding: 8px;
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        z-index: 1000;
+        height: 60px;
+        align-items: center;
+      }
+
+      .quick-action {
+        background: #21262d;
+        border: 1px solid #30363d;
+        border-radius: 20px;
+        padding: 8px 16px;
+        color: #c9d1d9;
+        font-size: 13px;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: all 0.2s;
+        flex-shrink: 0;
+      }
+
+      .quick-action:hover {
+        background: #30363d;
+        border-color: #8b949e;
+      }
+
+      .quick-action:active {
+        transform: scale(0.95);
+      }
+
+      .quick-action.primary {
+        background: linear-gradient(135deg, #7aa2f7 0%, #bb9af7 100%);
+        border: none;
+        color: white;
+        font-weight: 500;
+      }
+
+      .status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #3fb950;
+        display: inline-block;
+        margin-right: 4px;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .floating-menu {
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        padding: 8px;
+        display: none;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        z-index: 1001;
+      }
+
+      .floating-menu.show {
+        display: block;
+      }
+
+      .menu-item {
+        padding: 10px 16px;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: background 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 200px;
+      }
+
+      .menu-item:hover {
+        background: #30363d;
+      }
+
+      .menu-icon {
+        width: 16px;
+        height: 16px;
+        opacity: 0.8;
+      }
+
+      @media (max-width: 640px) {
         .terminal-title {
-            font-size: 16px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .terminal-icon {
-            width: 20px;
-            height: 20px;
-            background: linear-gradient(135deg, #7aa2f7 0%, #bb9af7 100%);
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .terminal-controls {
-            display: flex;
-            gap: 12px;
-            align-items: center;
+          font-size: 14px;
         }
 
         .control-btn {
-            background: #21262d;
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            padding: 6px 12px;
-            color: #c9d1d9;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .control-btn:hover {
-            background: #30363d;
-            border-color: #8b949e;
-        }
-
-        .control-btn:active {
-            transform: scale(0.95);
-        }
-
-        .terminal-container {
-            position: fixed;
-            top: 50px;
-            left: 0;
-            right: 0;
-            bottom: 60px;
-            background: #0d1117;
-        }
-
-        #terminal-frame {
-            width: 100%;
-            height: 100%;
-            border: none;
-            background: #0d1117;
-        }
-
-        .quick-actions {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #161b22;
-            border-top: 1px solid #30363d;
-            padding: 8px;
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            z-index: 1000;
-            height: 60px;
-            align-items: center;
+          padding: 6px 10px;
+          font-size: 12px;
         }
 
         .quick-action {
-            background: #21262d;
-            border: 1px solid #30363d;
-            border-radius: 20px;
-            padding: 8px 16px;
-            color: #c9d1d9;
-            font-size: 13px;
-            white-space: nowrap;
-            cursor: pointer;
-            transition: all 0.2s;
-            flex-shrink: 0;
+          font-size: 12px;
+          padding: 6px 12px;
         }
+      }
 
-        .quick-action:hover {
-            background: #30363d;
-            border-color: #8b949e;
-        }
+      /* Loading screen */
+      .loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #0d1117;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        transition: opacity 0.3s;
+      }
 
-        .quick-action:active {
-            transform: scale(0.95);
-        }
+      .loading-content {
+        text-align: center;
+      }
 
-        .quick-action.primary {
-            background: linear-gradient(135deg, #7aa2f7 0%, #bb9af7 100%);
-            border: none;
-            color: white;
-            font-weight: 500;
-        }
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #30363d;
+        border-top-color: #7aa2f7;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 16px;
+      }
 
-        .status-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #3fb950;
-            display: inline-block;
-            margin-right: 4px;
-            animation: pulse 2s infinite;
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
         }
+      }
 
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
+      .performance-badge {
+        background: #1a1b26;
+        border: 1px solid #30363d;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 11px;
+        font-family: "SF Mono", Monaco, monospace;
+        color: #9ece6a;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
 
-        .floating-menu {
-            position: fixed;
-            bottom: 80px;
-            right: 20px;
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 12px;
-            padding: 8px;
-            display: none;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-            z-index: 1001;
-        }
-
-        .floating-menu.show {
-            display: block;
-        }
-
-        .menu-item {
-            padding: 10px 16px;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: background 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            min-width: 200px;
-        }
-
-        .menu-item:hover {
-            background: #30363d;
-        }
-
-        .menu-icon {
-            width: 16px;
-            height: 16px;
-            opacity: 0.8;
-        }
-
-        @media (max-width: 640px) {
-            .terminal-title {
-                font-size: 14px;
-            }
-            
-            .control-btn {
-                padding: 6px 10px;
-                font-size: 12px;
-            }
-            
-            .quick-action {
-                font-size: 12px;
-                padding: 6px 12px;
-            }
-        }
-
-        /* Loading screen */
-        .loading-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: #0d1117;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-            transition: opacity 0.3s;
-        }
-
-        .loading-content {
-            text-align: center;
-        }
-
-        .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #30363d;
-            border-top-color: #7aa2f7;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 16px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .performance-badge {
-            background: #1a1b26;
-            border: 1px solid #30363d;
-            border-radius: 4px;
-            padding: 4px 8px;
-            font-size: 11px;
-            font-family: 'SF Mono', Monaco, monospace;
-            color: #9ece6a;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .perf-metric {
-            color: #7aa2f7;
-            font-weight: bold;
-        }
+      .perf-metric {
+        color: #7aa2f7;
+        font-weight: bold;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="loading-screen" id="loadingScreen">
-        <div class="loading-content">
-            <div class="loading-spinner"></div>
-            <div style="color: #8b949e;">Connecting to terminal...</div>
-        </div>
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <div style="color: #8b949e">Connecting to terminal...</div>
+      </div>
     </div>
 
     <div class="terminal-header">
-        <div class="terminal-title">
-            <div class="terminal-icon">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                    <polyline points="4 17 10 11 4 5"></polyline>
-                    <line x1="12" y1="19" x2="20" y2="19"></line>
-                </svg>
-            </div>
-            Cloud Terminal
-            <div class="performance-badge">
-                <span class="status-indicator"></span>
-                <span>O(1)</span>
-                <span class="perf-metric">2ms</span>
-            </div>
+      <div class="terminal-title">
+        <div class="terminal-icon">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="white"
+            stroke-width="2"
+          >
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
         </div>
-        <div class="terminal-controls">
-            <button class="control-btn" onclick="toggleFullscreen()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-                </svg>
-                <span class="control-text">Full</span>
-            </button>
-            <button class="control-btn" onclick="toggleMenu()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="1"></circle>
-                    <circle cx="12" cy="5" r="1"></circle>
-                    <circle cx="12" cy="19" r="1"></circle>
-                </svg>
-            </button>
+        Cloud Terminal
+        <div class="performance-badge">
+          <span class="status-indicator"></span>
+          <span>O(1)</span>
+          <span class="perf-metric">2ms</span>
         </div>
+      </div>
+      <div class="terminal-controls">
+        <button class="control-btn" onclick="toggleFullscreen()">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
+            ></path>
+          </svg>
+          <span class="control-text">Full</span>
+        </button>
+        <button class="control-btn" onclick="toggleMenu()">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="1"></circle>
+            <circle cx="12" cy="5" r="1"></circle>
+            <circle cx="12" cy="19" r="1"></circle>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <div class="terminal-container">
-        <iframe id="terminal-frame" src="https://your-domain.com/terminal"></iframe>
+      <iframe
+        id="terminal-frame"
+        src="https://your-domain.com/terminal"
+      ></iframe>
     </div>
 
     <div class="quick-actions">
-        <button class="quick-action primary" onclick="sendCommand('tmux new-window')">New Tab</button>
-        <button class="quick-action" onclick="sendCommand('clear')">Clear</button>
-        <button class="quick-action" onclick="sendCommand('python3')">Python</button>
-        <button class="quick-action" onclick="sendCommand('ipython')">IPython</button>
-        <button class="quick-action" onclick="sendCommand('node')">Node.js</button>
-        <button class="quick-action" onclick="sendCommand('npm run dev')">Run Dev</button>
-        <button class="quick-action" onclick="sendCommand('git status')">Git Status</button>
-        <button class="quick-action" onclick="sendCommand('docker ps')">Docker</button>
-        <button class="quick-action" onclick="sendCommand('btop')">Monitor</button>
+      <button
+        class="quick-action primary"
+        onclick="sendCommand('tmux new-window')"
+      >
+        New Tab
+      </button>
+      <button class="quick-action" onclick="sendCommand('clear')">Clear</button>
+      <button class="quick-action" onclick="sendCommand('python3')">
+        Python
+      </button>
+      <button class="quick-action" onclick="sendCommand('ipython')">
+        IPython
+      </button>
+      <button class="quick-action" onclick="sendCommand('node')">
+        Node.js
+      </button>
+      <button class="quick-action" onclick="sendCommand('npm run dev')">
+        Run Dev
+      </button>
+      <button class="quick-action" onclick="sendCommand('git status')">
+        Git Status
+      </button>
+      <button class="quick-action" onclick="sendCommand('docker ps')">
+        Docker
+      </button>
+      <button class="quick-action" onclick="sendCommand('btop')">
+        Monitor
+      </button>
     </div>
 
     <div class="floating-menu" id="floatingMenu">
-        <div class="menu-item" onclick="sendCommand('cd ~/ && ls -la')">
-            <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                <polyline points="9 22 9 12 15 12 15 22"></polyline>
-            </svg>
-            Home Directory
-        </div>
-        <div class="menu-item" onclick="sendCommand('cd ~/projects && ls')">
-            <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-            </svg>
-            Projects
-        </div>
-        <div class="menu-item" onclick="sendCommand('jupyter notebook --no-browser --ip=0.0.0.0')">
-            <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
-            </svg>
-            Jupyter Notebook
-        </div>
-        <div class="menu-item" onclick="openSettings()">
-            <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M12 1v6m0 6v6m11-6h-6m-6 0H1"></path>
-            </svg>
-            Settings
-        </div>
+      <div class="menu-item" onclick="sendCommand('cd ~/ && ls -la')">
+        <svg
+          class="menu-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+        Home Directory
+      </div>
+      <div class="menu-item" onclick="sendCommand('cd ~/projects && ls')">
+        <svg
+          class="menu-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+          ></path>
+        </svg>
+        Projects
+      </div>
+      <div
+        class="menu-item"
+        onclick="sendCommand('jupyter notebook --no-browser --ip=0.0.0.0')"
+      >
+        <svg
+          class="menu-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+          ></path>
+        </svg>
+        Jupyter Notebook
+      </div>
+      <div class="menu-item" onclick="openSettings()">
+        <svg
+          class="menu-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 1v6m0 6v6m11-6h-6m-6 0H1"></path>
+        </svg>
+        Settings
+      </div>
     </div>
 
     <script>
-        const terminalFrame = document.getElementById('terminal-frame');
-        const loadingScreen = document.getElementById('loadingScreen');
-        const floatingMenu = document.getElementById('floatingMenu');
+      const terminalFrame = document.getElementById("terminal-frame");
+      const loadingScreen = document.getElementById("loadingScreen");
+      const floatingMenu = document.getElementById("floatingMenu");
 
-        // Hide loading screen when terminal loads
-        terminalFrame.onload = () => {
-            setTimeout(() => {
-                loadingScreen.style.opacity = '0';
-                setTimeout(() => {
-                    loadingScreen.style.display = 'none';
-                }, 300);
-            }, 500);
-        };
+      // Hide loading screen when terminal loads
+      terminalFrame.onload = () => {
+        setTimeout(() => {
+          loadingScreen.style.opacity = "0";
+          setTimeout(() => {
+            loadingScreen.style.display = "none";
+          }, 300);
+        }, 500);
+      };
 
-        function sendCommand(command) {
-            // Send command to terminal iframe
-            terminalFrame.contentWindow.postMessage({
-                type: 'command',
-                command: command
-            }, '*');
+      function sendCommand(command) {
+        // Send command to terminal iframe
+        terminalFrame.contentWindow.postMessage(
+          {
+            type: "command",
+            command: command,
+          },
+          "*"
+        );
+      }
+
+      function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen();
+        } else {
+          document.exitFullscreen();
         }
+      }
 
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-            } else {
-                document.exitFullscreen();
-            }
+      function toggleMenu() {
+        floatingMenu.classList.toggle("show");
+      }
+
+      function openSettings() {
+        // Implement settings panel
+        alert("Settings panel coming soon!");
+      }
+
+      // Close menu when clicking outside
+      document.addEventListener("click", (e) => {
+        if (
+          !e.target.closest(".control-btn") &&
+          !e.target.closest(".floating-menu")
+        ) {
+          floatingMenu.classList.remove("show");
         }
+      });
 
-        function toggleMenu() {
-            floatingMenu.classList.toggle('show');
+      // Handle keyboard shortcuts
+      document.addEventListener("keydown", (e) => {
+        // Ctrl/Cmd + K to clear
+        if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+          e.preventDefault();
+          sendCommand("clear");
         }
-
-        function openSettings() {
-            // Implement settings panel
-            alert('Settings panel coming soon!');
+        // Ctrl/Cmd + T for new tab
+        if ((e.ctrlKey || e.metaKey) && e.key === "t") {
+          e.preventDefault();
+          sendCommand("tmux new-window");
         }
+      });
 
-        // Close menu when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.control-btn') && !e.target.closest('.floating-menu')) {
-                floatingMenu.classList.remove('show');
-            }
-        });
+      // Update performance metrics
+      setInterval(() => {
+        const latency = Math.floor(Math.random() * 3) + 1;
+        document.querySelector(".perf-metric").textContent = `${latency}ms`;
+      }, 5000);
 
-        // Handle keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            // Ctrl/Cmd + K to clear
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-                e.preventDefault();
-                sendCommand('clear');
-            }
-            // Ctrl/Cmd + T for new tab
-            if ((e.ctrlKey || e.metaKey) && e.key === 't') {
-                e.preventDefault();
-                sendCommand('tmux new-window');
-            }
-        });
-
-        // Update performance metrics
-        setInterval(() => {
-            const latency = Math.floor(Math.random() * 3) + 1;
-            document.querySelector('.perf-metric').textContent = `${latency}ms`;
-        }, 5000);
-
-        // Prevent zoom on double tap for mobile
-        let lastTouchEnd = 0;
-        document.addEventListener('touchend', (e) => {
-            const now = Date.now();
-            if (now - lastTouchEnd <= 300) {
-                e.preventDefault();
-            }
-            lastTouchEnd = now;
-        }, false);
+      // Prevent zoom on double tap for mobile
+      let lastTouchEnd = 0;
+      document.addEventListener(
+        "touchend",
+        (e) => {
+          const now = Date.now();
+          if (now - lastTouchEnd <= 300) {
+            e.preventDefault();
+          }
+          lastTouchEnd = now;
+        },
+        false
+      );
     </script>
-</body>
+  </body>
 </html>

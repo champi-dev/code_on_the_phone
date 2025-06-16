@@ -1,1116 +1,1179 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0d1117">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="theme-color" content="#0d1117" />
     <title>Cloud Terminal 3D</title>
-    <link rel="manifest" href="/manifest.json">
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="alternate icon" href="/favicon.ico">
-    <link rel="apple-touch-icon" href="/icon.svg">
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #0d1117;
-            color: #c9d1d9;
-            overflow: hidden;
-            position: fixed;
-            width: 100%;
-            height: 100%;
-        }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background-color: #0d1117;
+        color: #c9d1d9;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+      }
 
-        #three-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            pointer-events: none;
-            background: radial-gradient(ellipse at center, #1a1f2e 0%, #0d1117 100%);
-        }
-        
-        /* Additional background effects */
-        #three-container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 20% 50%, rgba(122, 162, 247, 0.1) 0%, transparent 50%),
-                        radial-gradient(circle at 80% 80%, rgba(187, 154, 247, 0.1) 0%, transparent 50%),
-                        radial-gradient(circle at 40% 20%, rgba(158, 206, 106, 0.05) 0%, transparent 50%);
-            animation: bgShift 20s ease-in-out infinite;
-        }
-        
-        @keyframes bgShift {
-            0%, 100% {
-                transform: translate(0, 0) scale(1);
-            }
-            33% {
-                transform: translate(-20px, -20px) scale(1.1);
-            }
-            66% {
-                transform: translate(20px, -10px) scale(0.9);
-            }
-        }
+      #three-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: none;
+        background: radial-gradient(
+          ellipse at center,
+          #1a1f2e 0%,
+          #0d1117 100%
+        );
+      }
 
-        .terminal-wrapper {
-            position: relative;
-            z-index: 10;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+      /* Additional background effects */
+      #three-container::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(
+            circle at 20% 50%,
+            rgba(122, 162, 247, 0.1) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(187, 154, 247, 0.1) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at 40% 20%,
+            rgba(158, 206, 106, 0.05) 0%,
+            transparent 50%
+          );
+        animation: bgShift 20s ease-in-out infinite;
+      }
 
-        .terminal-header {
-            background: rgba(22, 27, 34, 0.95);
-            backdrop-filter: blur(10px);
-            display: flex;
-            flex-direction: column;
-            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
-            z-index: 20;
+      @keyframes bgShift {
+        0%,
+        100% {
+          transform: translate(0, 0) scale(1);
         }
-        
-        .terminal-top-bar {
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            height: 50px;
+        33% {
+          transform: translate(-20px, -20px) scale(1.1);
         }
-        
-        .tabs-container {
-            display: flex;
-            align-items: center;
-            padding: 0 16px;
-            gap: 8px;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: thin;
-            scrollbar-color: rgba(122, 162, 247, 0.3) transparent;
+        66% {
+          transform: translate(20px, -10px) scale(0.9);
         }
-        
-        .tabs-container::-webkit-scrollbar {
-            height: 4px;
-        }
-        
-        .tabs-container::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        
-        .tabs-container::-webkit-scrollbar-thumb {
-            background: rgba(122, 162, 247, 0.3);
-            border-radius: 2px;
-        }
-        
-        .tab {
-            background: rgba(33, 38, 45, 0.6);
-            border: 1px solid rgba(48, 54, 61, 0.5);
-            border-radius: 8px 8px 0 0;
-            padding: 8px 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
-            min-width: 120px;
-            max-width: 200px;
-            flex-shrink: 0;
-        }
-        
-        .tab.active {
-            background: rgba(48, 54, 61, 0.8);
-            border-color: #7aa2f7;
-            border-bottom: 1px solid transparent;
-        }
-        
-        .tab:hover {
-            background: rgba(48, 54, 61, 0.7);
-        }
-        
-        .tab-title {
-            flex: 1;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-size: 13px;
-        }
-        
-        .tab-close {
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: rgba(248, 81, 73, 0.2);
-            border: 1px solid rgba(248, 81, 73, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 10px;
-            color: #f85149;
-        }
-        
-        .tab-close:hover {
-            background: rgba(248, 81, 73, 0.4);
-            transform: scale(1.1);
-        }
-        
-        .add-tab-btn {
-            background: rgba(122, 162, 247, 0.1);
-            border: 1px solid rgba(122, 162, 247, 0.3);
-            border-radius: 6px;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            flex-shrink: 0;
-            color: #7aa2f7;
-            font-size: 18px;
-        }
-        
-        .add-tab-btn:hover {
-            background: rgba(122, 162, 247, 0.2);
-            transform: scale(1.05);
-        }
+      }
 
+      .terminal-wrapper {
+        position: relative;
+        z-index: 10;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .terminal-header {
+        background: rgba(22, 27, 34, 0.95);
+        backdrop-filter: blur(10px);
+        display: flex;
+        flex-direction: column;
+        border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+        z-index: 20;
+      }
+
+      .terminal-top-bar {
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 50px;
+      }
+
+      .tabs-container {
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        gap: 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(122, 162, 247, 0.3) transparent;
+      }
+
+      .tabs-container::-webkit-scrollbar {
+        height: 4px;
+      }
+
+      .tabs-container::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .tabs-container::-webkit-scrollbar-thumb {
+        background: rgba(122, 162, 247, 0.3);
+        border-radius: 2px;
+      }
+
+      .tab {
+        background: rgba(33, 38, 45, 0.6);
+        border: 1px solid rgba(48, 54, 61, 0.5);
+        border-radius: 8px 8px 0 0;
+        padding: 8px 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+        min-width: 120px;
+        max-width: 200px;
+        flex-shrink: 0;
+      }
+
+      .tab.active {
+        background: rgba(48, 54, 61, 0.8);
+        border-color: #7aa2f7;
+        border-bottom: 1px solid transparent;
+      }
+
+      .tab:hover {
+        background: rgba(48, 54, 61, 0.7);
+      }
+
+      .tab-title {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 13px;
+      }
+
+      .tab-close {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: rgba(248, 81, 73, 0.2);
+        border: 1px solid rgba(248, 81, 73, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 10px;
+        color: #f85149;
+      }
+
+      .tab-close:hover {
+        background: rgba(248, 81, 73, 0.4);
+        transform: scale(1.1);
+      }
+
+      .add-tab-btn {
+        background: rgba(122, 162, 247, 0.1);
+        border: 1px solid rgba(122, 162, 247, 0.3);
+        border-radius: 6px;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        flex-shrink: 0;
+        color: #7aa2f7;
+        font-size: 18px;
+      }
+
+      .add-tab-btn:hover {
+        background: rgba(122, 162, 247, 0.2);
+        transform: scale(1.05);
+      }
+
+      .terminal-title {
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .glow-orb {
+        width: 10px;
+        height: 10px;
+        background: radial-gradient(circle, #7aa2f7 0%, #bb9af7 100%);
+        border-radius: 50%;
+        animation: pulse 2s ease-in-out infinite;
+        box-shadow: 0 0 20px rgba(122, 162, 247, 0.8);
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.8;
+          transform: scale(1.2);
+        }
+      }
+
+      .performance-monitor {
+        font-size: 11px;
+        font-family: "SF Mono", Monaco, monospace;
+        color: #9ece6a;
+        background: rgba(26, 27, 38, 0.8);
+        padding: 4px 8px;
+        border-radius: 4px;
+        display: flex;
+        gap: 10px;
+      }
+
+      .fps-counter {
+        color: #7aa2f7;
+      }
+
+      .terminal-container {
+        opacity: 0.6;
+        flex: 1;
+        position: relative;
+        background: rgba(13, 17, 23, 0.85);
+        backdrop-filter: blur(5px);
+        animation: terminalGlow 4s ease-in-out infinite alternate;
+      }
+
+      @keyframes terminalGlow {
+        0% {
+          box-shadow: inset 0 0 20px rgba(122, 162, 247, 0.05);
+        }
+        100% {
+          box-shadow: inset 0 0 30px rgba(187, 154, 247, 0.08);
+        }
+      }
+
+      #terminal-frame {
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: transparent;
+        position: relative;
+      }
+
+      /* Terminal text animation overlay */
+      .terminal-fx {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 5;
+        overflow: hidden;
+      }
+
+      .terminal-fx::before {
+        content: "";
+        position: absolute;
+        top: -100%;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          0deg,
+          transparent 0%,
+          rgba(122, 162, 247, 0.03) 50%,
+          transparent 100%
+        );
+        animation: scanline 8s linear infinite;
+      }
+
+      @keyframes scanline {
+        to {
+          top: 100%;
+        }
+      }
+
+      /* Subtle text distortion effect */
+      .terminal-fx::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(255, 255, 255, 0.01) 2px,
+          rgba(255, 255, 255, 0.01) 4px
+        );
+        animation: flicker 0.15s infinite;
+      }
+
+      @keyframes flicker {
+        0% {
+          opacity: 0.97;
+        }
+        50% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0.98;
+        }
+      }
+
+      /* Removed quick-bar styles */
+
+      .loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #0d1117;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        transition: opacity 0.5s;
+      }
+
+      .loading-content {
+        text-align: center;
+      }
+
+      .loading-spinner {
+        width: 60px;
+        height: 60px;
+        position: relative;
+        margin: 0 auto 20px;
+      }
+
+      .loading-spinner::before,
+      .loading-spinner::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 3px solid transparent;
+        border-top-color: #7aa2f7;
+        animation: spin 1.5s linear infinite;
+      }
+
+      .loading-spinner::after {
+        border-top-color: #bb9af7;
+        animation-delay: 0.2s;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .logout-btn {
+        background: rgba(248, 81, 73, 0.1);
+        border: 1px solid rgba(248, 81, 73, 0.3);
+        border-radius: 6px;
+        padding: 6px 12px;
+        color: #f85149;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .logout-btn:hover {
+        background: rgba(248, 81, 73, 0.2);
+        border-color: #f85149;
+      }
+
+      /* PWA install prompt */
+      .install-prompt {
+        position: fixed;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(33, 38, 45, 0.95);
+        border: 1px solid rgba(122, 162, 247, 0.5);
+        border-radius: 12px;
+        padding: 16px 20px;
+        display: none;
+        align-items: center;
+        gap: 12px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        z-index: 100;
+      }
+
+      .install-prompt button {
+        background: linear-gradient(135deg, #7aa2f7 0%, #bb9af7 100%);
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        color: white;
+        font-weight: 500;
+        cursor: pointer;
+      }
+
+      @media (max-width: 640px) {
         .terminal-title {
-            font-size: 16px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+          font-size: 14px;
         }
 
-        .glow-orb {
-            width: 10px;
-            height: 10px;
-            background: radial-gradient(circle, #7aa2f7 0%, #bb9af7 100%);
-            border-radius: 50%;
-            animation: pulse 2s ease-in-out infinite;
-            box-shadow: 0 0 20px rgba(122, 162, 247, 0.8);
+        .quick-btn {
+          padding: 6px 12px;
+          font-size: 12px;
         }
-
-        @keyframes pulse {
-            0%, 100% { 
-                opacity: 1; 
-                transform: scale(1);
-            }
-            50% { 
-                opacity: 0.8; 
-                transform: scale(1.2);
-            }
-        }
-
-        .performance-monitor {
-            font-size: 11px;
-            font-family: 'SF Mono', Monaco, monospace;
-            color: #9ece6a;
-            background: rgba(26, 27, 38, 0.8);
-            padding: 4px 8px;
-            border-radius: 4px;
-            display: flex;
-            gap: 10px;
-        }
-
-        .fps-counter {
-            color: #7aa2f7;
-        }
-
-        .terminal-container {
-            flex: 1;
-            position: relative;
-            background: rgba(13, 17, 23, 0.85);
-            backdrop-filter: blur(5px);
-            animation: terminalGlow 4s ease-in-out infinite alternate;
-        }
-        
-        @keyframes terminalGlow {
-            0% {
-                box-shadow: inset 0 0 20px rgba(122, 162, 247, 0.05);
-            }
-            100% {
-                box-shadow: inset 0 0 30px rgba(187, 154, 247, 0.08);
-            }
-        }
-
-        #terminal-frame {
-            width: 100%;
-            height: 100%;
-            border: none;
-            background: transparent;
-            position: relative;
-        }
-        
-        /* Terminal text animation overlay */
-        .terminal-fx {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 5;
-            overflow: hidden;
-        }
-        
-        .terminal-fx::before {
-            content: '';
-            position: absolute;
-            top: -100%;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(
-                0deg,
-                transparent 0%,
-                rgba(122, 162, 247, 0.03) 50%,
-                transparent 100%
-            );
-            animation: scanline 8s linear infinite;
-        }
-        
-        @keyframes scanline {
-            to {
-                top: 100%;
-            }
-        }
-        
-        /* Subtle text distortion effect */
-        .terminal-fx::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 2px,
-                rgba(255, 255, 255, 0.01) 2px,
-                rgba(255, 255, 255, 0.01) 4px
-            );
-            animation: flicker 0.15s infinite;
-        }
-        
-        @keyframes flicker {
-            0% {
-                opacity: 0.97;
-            }
-            50% {
-                opacity: 1;
-            }
-            100% {
-                opacity: 0.98;
-            }
-        }
-
-        /* Removed quick-bar styles */
-
-        .loading-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #0d1117;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            transition: opacity 0.5s;
-        }
-
-        .loading-content {
-            text-align: center;
-        }
-
-        .loading-spinner {
-            width: 60px;
-            height: 60px;
-            position: relative;
-            margin: 0 auto 20px;
-        }
-
-        .loading-spinner::before,
-        .loading-spinner::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            border: 3px solid transparent;
-            border-top-color: #7aa2f7;
-            animation: spin 1.5s linear infinite;
-        }
-
-        .loading-spinner::after {
-            border-top-color: #bb9af7;
-            animation-delay: 0.2s;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .logout-btn {
-            background: rgba(248, 81, 73, 0.1);
-            border: 1px solid rgba(248, 81, 73, 0.3);
-            border-radius: 6px;
-            padding: 6px 12px;
-            color: #f85149;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .logout-btn:hover {
-            background: rgba(248, 81, 73, 0.2);
-            border-color: #f85149;
-        }
-
-        /* PWA install prompt */
-        .install-prompt {
-            position: fixed;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(33, 38, 45, 0.95);
-            border: 1px solid rgba(122, 162, 247, 0.5);
-            border-radius: 12px;
-            padding: 16px 20px;
-            display: none;
-            align-items: center;
-            gap: 12px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-            z-index: 100;
-        }
-
-        .install-prompt button {
-            background: linear-gradient(135deg, #7aa2f7 0%, #bb9af7 100%);
-            border: none;
-            border-radius: 6px;
-            padding: 8px 16px;
-            color: white;
-            font-weight: 500;
-            cursor: pointer;
-        }
-
-        @media (max-width: 640px) {
-            .terminal-title {
-                font-size: 14px;
-            }
-            
-            .quick-btn {
-                padding: 6px 12px;
-                font-size: 12px;
-            }
-        }
+      }
     </style>
     <script src="/js/three.min.js"></script>
-</head>
-<body>
+  </head>
+  <body>
     <div class="loading-screen" id="loadingScreen">
-        <div class="loading-content">
-            <div class="loading-spinner"></div>
-            <div style="color: #8b949e;">Initializing quantum terminal...</div>
-        </div>
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <div style="color: #8b949e">Initializing quantum terminal...</div>
+      </div>
     </div>
 
     <div id="three-container"></div>
 
     <div class="terminal-wrapper">
-        <div class="terminal-header">
-            <div class="terminal-top-bar">
-                <div class="terminal-title">
-                    <div class="glow-orb"></div>
-                    Cloud Terminal 3D
-                </div>
-                <div style="display: flex; gap: 12px; align-items: center;">
-                    <div class="performance-monitor">
-                        <span>O(1)</span>
-                        <span class="fps-counter" id="fpsCounter">120 FPS</span>
-                    </div>
-                    <button class="logout-btn" onclick="logout()">Logout</button>
-                </div>
+      <div class="terminal-header">
+        <div class="terminal-top-bar">
+          <div class="terminal-title">
+            <div class="glow-orb"></div>
+            Cloud Terminal 3D
+          </div>
+          <div style="display: flex; gap: 12px; align-items: center">
+            <div class="performance-monitor">
+              <span>O(1)</span>
+              <span class="fps-counter" id="fpsCounter">120 FPS</span>
             </div>
-            <div class="tabs-container" id="tabs-container">
-                <!-- Tabs will be dynamically added here -->
-                <div class="add-tab-btn" onclick="addNewTab()" title="New Tab">+</div>
-            </div>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+          </div>
         </div>
-        
-        <div class="terminal-container">
-            <div id="terminals-container" style="width: 100%; height: 100%; position: relative;">
-                <!-- Terminal iframes will be dynamically added here -->
-            </div>
-            <div class="terminal-fx"></div>
+        <div class="tabs-container" id="tabs-container">
+          <!-- Tabs will be dynamically added here -->
+          <div class="add-tab-btn" onclick="addNewTab()" title="New Tab">+</div>
         </div>
-        
-        <!-- Removed quick-bar for cleaner interface -->
+      </div>
+
+      <div class="terminal-container">
+        <div
+          id="terminals-container"
+          style="width: 100%; height: 100%; position: relative"
+        >
+          <!-- Terminal iframes will be dynamically added here -->
+        </div>
+        <div class="terminal-fx"></div>
+      </div>
+
+      <!-- Removed quick-bar for cleaner interface -->
     </div>
 
     <div class="install-prompt" id="installPrompt">
-        <span>Install Cloud Terminal as an app?</span>
-        <button onclick="installPWA()">Install</button>
-        <button onclick="dismissInstall()" style="background: transparent; border: 1px solid #30363d;">Later</button>
+      <span>Install Cloud Terminal as an app?</span>
+      <button onclick="installPWA()">Install</button>
+      <button
+        onclick="dismissInstall()"
+        style="background: transparent; border: 1px solid #30363d"
+      >
+        Later
+      </button>
     </div>
 
     <script>
-        // Three.js Background Animation
-        let scene, camera, renderer, particles, frameCount = 0;
-        let mouseX = 0, mouseY = 0;
-        let geometries = [];
-        let materials = [];
-        let meshes = [];
-        let particleSystems = [];
-        let time = 0;
+      // Three.js Background Animation
+      let scene,
+        camera,
+        renderer,
+        particles,
+        frameCount = 0;
+      let mouseX = 0,
+        mouseY = 0;
+      let geometries = [];
+      let materials = [];
+      let meshes = [];
+      let particleSystems = [];
+      let time = 0;
 
-        function initThree() {
-            console.log('initThree called, creating scene...');
-            try {
-                scene = new THREE.Scene();
-                scene.fog = new THREE.Fog(0x0d1117, 1, 15);
-            
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            
-            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.2;
-            document.getElementById('three-container').appendChild(renderer.domElement);
+      function initThree() {
+        console.log("initThree called, creating scene...");
+        try {
+          scene = new THREE.Scene();
+          scene.fog = new THREE.Fog(0x0d1117, 1, 15);
 
-            // Create multiple particle systems with different behaviors
-            // System 1: Floating particles
-            const particleCount1 = 2000;
-            const geometry1 = new THREE.BufferGeometry();
-            const positions1 = new Float32Array(particleCount1 * 3);
-            const colors1 = new Float32Array(particleCount1 * 3);
-            const sizes1 = new Float32Array(particleCount1);
-            
-            for(let i = 0; i < particleCount1; i++) {
-                const i3 = i * 3;
-                positions1[i3] = (Math.random() - 0.5) * 20;
-                positions1[i3 + 1] = (Math.random() - 0.5) * 20;
-                positions1[i3 + 2] = (Math.random() - 0.5) * 20;
-                
-                const color = new THREE.Color();
-                color.setHSL(0.6 + Math.random() * 0.3, 0.7, 0.5);
-                colors1[i3] = color.r;
-                colors1[i3 + 1] = color.g;
-                colors1[i3 + 2] = color.b;
-                
-                sizes1[i] = Math.random() * 0.02 + 0.005;
-            }
-            
-            geometry1.setAttribute('position', new THREE.BufferAttribute(positions1, 3));
-            geometry1.setAttribute('color', new THREE.BufferAttribute(colors1, 3));
-            geometry1.setAttribute('size', new THREE.BufferAttribute(sizes1, 1));
-            
-            const material1 = new THREE.PointsMaterial({
-                size: 0.02,
-                vertexColors: true,
-                transparent: true,
-                opacity: 0.6,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
-            
-            const particles1 = new THREE.Points(geometry1, material1);
-            scene.add(particles1);
-            particleSystems.push(particles1);
-            
-            // System 2: Energy field
-            const particleCount2 = 500;
-            const geometry2 = new THREE.BufferGeometry();
-            const positions2 = new Float32Array(particleCount2 * 3);
-            
-            for(let i = 0; i < particleCount2; i++) {
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos(Math.random() * 2 - 1);
-                const r = 3 + Math.random() * 2;
-                
-                positions2[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-                positions2[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-                positions2[i * 3 + 2] = r * Math.cos(phi);
-            }
-            
-            geometry2.setAttribute('position', new THREE.BufferAttribute(positions2, 3));
-            
-            const material2 = new THREE.PointsMaterial({
-                size: 0.03,
-                color: 0xbb9af7,
-                transparent: true,
-                opacity: 0.8,
-                blending: THREE.AdditiveBlending,
-                map: createGlowTexture()
-            });
-            
-            const particles2 = new THREE.Points(geometry2, material2);
-            scene.add(particles2);
-            particleSystems.push(particles2);
-            
-            // Add dynamic geometries
-            // Morphing torus knot
-            const torusGeometry = new THREE.TorusKnotGeometry(1.5, 0.4, 200, 32);
-            const torusMaterial = new THREE.MeshBasicMaterial({
-                color: 0x7aa2f7,
-                wireframe: true,
-                transparent: true,
-                opacity: 0.15
-            });
-            const torusKnot = new THREE.Mesh(torusGeometry, torusMaterial);
-            scene.add(torusKnot);
-            meshes.push(torusKnot);
-            
-            // Icosahedron with glow
-            const icoGeometry = new THREE.IcosahedronGeometry(2, 1);
-            const icoMaterial = new THREE.MeshBasicMaterial({
-                color: 0xbb9af7,
-                wireframe: true,
-                transparent: true,
-                opacity: 0.1
-            });
-            const icosahedron = new THREE.Mesh(icoGeometry, icoMaterial);
-            icosahedron.position.x = -3;
-            scene.add(icosahedron);
-            meshes.push(icosahedron);
-            
-            // DNA-like helix
-            const helixPoints = [];
-            for(let i = 0; i < 100; i++) {
-                const t = i / 100 * Math.PI * 4;
-                const x = Math.sin(t) * 2;
-                const y = (i - 50) * 0.1;
-                const z = Math.cos(t) * 2;
-                helixPoints.push(new THREE.Vector3(x, y, z));
-            }
-            
-            const helixGeometry = new THREE.BufferGeometry().setFromPoints(helixPoints);
-            const helixMaterial = new THREE.LineBasicMaterial({
-                color: 0x9ece6a,
-                transparent: true,
-                opacity: 0.3
-            });
-            const helix = new THREE.Line(helixGeometry, helixMaterial);
-            helix.position.x = 3;
-            scene.add(helix);
-            meshes.push(helix);
-            
-            // Plasma sphere
-            const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
-            const sphereMaterial = new THREE.MeshBasicMaterial({
-                color: 0xff9e64,
-                wireframe: true,
-                transparent: true,
-                opacity: 0.1
-            });
-            const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-            sphere.position.y = -2;
-            scene.add(sphere);
-            meshes.push(sphere);
-            
-            camera.position.z = 5;
-            camera.position.y = 1;
+          camera = new THREE.PerspectiveCamera(
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+          );
 
-            // Mouse movement
-            document.addEventListener('mousemove', (e) => {
-                mouseX = (e.clientX / window.innerWidth) * 2 - 1;
-                mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
-            });
-            
-            // Touch support
-            document.addEventListener('touchmove', (e) => {
-                if (e.touches.length > 0) {
-                    mouseX = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
-                    mouseY = -(e.touches[0].clientY / window.innerHeight) * 2 + 1;
-                }
-            });
+          renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+          renderer.setSize(window.innerWidth, window.innerHeight);
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+          renderer.toneMapping = THREE.ACESFilmicToneMapping;
+          renderer.toneMappingExposure = 1.2;
+          document
+            .getElementById("three-container")
+            .appendChild(renderer.domElement);
 
-            animate();
-                console.log('Three.js initialization complete');
-            } catch (error) {
-                console.error('Error initializing Three.js:', error);
+          // Create multiple particle systems with different behaviors
+          // System 1: Floating particles
+          const particleCount1 = 2000;
+          const geometry1 = new THREE.BufferGeometry();
+          const positions1 = new Float32Array(particleCount1 * 3);
+          const colors1 = new Float32Array(particleCount1 * 3);
+          const sizes1 = new Float32Array(particleCount1);
+
+          for (let i = 0; i < particleCount1; i++) {
+            const i3 = i * 3;
+            positions1[i3] = (Math.random() - 0.5) * 20;
+            positions1[i3 + 1] = (Math.random() - 0.5) * 20;
+            positions1[i3 + 2] = (Math.random() - 0.5) * 20;
+
+            const color = new THREE.Color();
+            color.setHSL(0.6 + Math.random() * 0.3, 0.7, 0.5);
+            colors1[i3] = color.r;
+            colors1[i3 + 1] = color.g;
+            colors1[i3 + 2] = color.b;
+
+            sizes1[i] = Math.random() * 0.02 + 0.005;
+          }
+
+          geometry1.setAttribute(
+            "position",
+            new THREE.BufferAttribute(positions1, 3)
+          );
+          geometry1.setAttribute(
+            "color",
+            new THREE.BufferAttribute(colors1, 3)
+          );
+          geometry1.setAttribute("size", new THREE.BufferAttribute(sizes1, 1));
+
+          const material1 = new THREE.PointsMaterial({
+            size: 0.02,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          });
+
+          const particles1 = new THREE.Points(geometry1, material1);
+          scene.add(particles1);
+          particleSystems.push(particles1);
+
+          // System 2: Energy field
+          const particleCount2 = 500;
+          const geometry2 = new THREE.BufferGeometry();
+          const positions2 = new Float32Array(particleCount2 * 3);
+
+          for (let i = 0; i < particleCount2; i++) {
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(Math.random() * 2 - 1);
+            const r = 3 + Math.random() * 2;
+
+            positions2[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+            positions2[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+            positions2[i * 3 + 2] = r * Math.cos(phi);
+          }
+
+          geometry2.setAttribute(
+            "position",
+            new THREE.BufferAttribute(positions2, 3)
+          );
+
+          const material2 = new THREE.PointsMaterial({
+            size: 0.03,
+            color: 0xbb9af7,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending,
+            map: createGlowTexture(),
+          });
+
+          const particles2 = new THREE.Points(geometry2, material2);
+          scene.add(particles2);
+          particleSystems.push(particles2);
+
+          // Add dynamic geometries
+          // Morphing torus knot
+          const torusGeometry = new THREE.TorusKnotGeometry(1.5, 0.4, 200, 32);
+          const torusMaterial = new THREE.MeshBasicMaterial({
+            color: 0x7aa2f7,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.15,
+          });
+          const torusKnot = new THREE.Mesh(torusGeometry, torusMaterial);
+          scene.add(torusKnot);
+          meshes.push(torusKnot);
+
+          // Icosahedron with glow
+          const icoGeometry = new THREE.IcosahedronGeometry(2, 1);
+          const icoMaterial = new THREE.MeshBasicMaterial({
+            color: 0xbb9af7,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.1,
+          });
+          const icosahedron = new THREE.Mesh(icoGeometry, icoMaterial);
+          icosahedron.position.x = -3;
+          scene.add(icosahedron);
+          meshes.push(icosahedron);
+
+          // DNA-like helix
+          const helixPoints = [];
+          for (let i = 0; i < 100; i++) {
+            const t = (i / 100) * Math.PI * 4;
+            const x = Math.sin(t) * 2;
+            const y = (i - 50) * 0.1;
+            const z = Math.cos(t) * 2;
+            helixPoints.push(new THREE.Vector3(x, y, z));
+          }
+
+          const helixGeometry = new THREE.BufferGeometry().setFromPoints(
+            helixPoints
+          );
+          const helixMaterial = new THREE.LineBasicMaterial({
+            color: 0x9ece6a,
+            transparent: true,
+            opacity: 0.3,
+          });
+          const helix = new THREE.Line(helixGeometry, helixMaterial);
+          helix.position.x = 3;
+          scene.add(helix);
+          meshes.push(helix);
+
+          // Plasma sphere
+          const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+          const sphereMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff9e64,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.1,
+          });
+          const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+          sphere.position.y = -2;
+          scene.add(sphere);
+          meshes.push(sphere);
+
+          camera.position.z = 5;
+          camera.position.y = 1;
+
+          // Mouse movement
+          document.addEventListener("mousemove", (e) => {
+            mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+          });
+
+          // Touch support
+          document.addEventListener("touchmove", (e) => {
+            if (e.touches.length > 0) {
+              mouseX = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
+              mouseY = -(e.touches[0].clientY / window.innerHeight) * 2 + 1;
             }
+          });
+
+          animate();
+          console.log("Three.js initialization complete");
+        } catch (error) {
+          console.error("Error initializing Three.js:", error);
         }
-        
-        function createGlowTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 32;
-            canvas.height = 32;
-            const ctx = canvas.getContext('2d');
-            
-            const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-            gradient.addColorStop(0, 'rgba(255,255,255,1)');
-            gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)');
-            gradient.addColorStop(0.4, 'rgba(122,162,247,0.6)');
-            gradient.addColorStop(1, 'rgba(122,162,247,0)');
-            
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, 32, 32);
-            
-            const texture = new THREE.CanvasTexture(canvas);
-            return texture;
-        }
+      }
 
-        function animate() {
-            requestAnimationFrame(animate);
-            frameCount++;
-            time += 0.01;
+      function createGlowTexture() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext("2d");
 
-            // Animate particle systems
-            if (particleSystems[0]) {
-                particleSystems[0].rotation.y += 0.0003;
-                particleSystems[0].rotation.x += 0.0002;
-                
-                // Wave motion for particles
-                const positions = particleSystems[0].geometry.attributes.position.array;
-                const basePositions = positions.slice();
-                for(let i = 0; i < positions.length; i += 3) {
-                    const x = positions[i];
-                    const y = positions[i + 1];
-                    const z = positions[i + 2];
-                    
-                    positions[i + 1] = y + Math.sin(time + x * 0.5) * 0.02;
-                    positions[i] = x + Math.sin(time * 0.7 + z * 0.3) * 0.01;
-                }
-                particleSystems[0].geometry.attributes.position.needsUpdate = true;
-            }
-            
-            if (particleSystems[1]) {
-                // Energy field rotation and pulsing
-                particleSystems[1].rotation.y += 0.002;
-                particleSystems[1].rotation.z += 0.001;
-                particleSystems[1].scale.setScalar(1 + Math.sin(time * 2) * 0.1);
-            }
-            
-            // Animate meshes
-            meshes.forEach((mesh, index) => {
-                if (index === 0) { // Torus knot
-                    mesh.rotation.x += 0.003;
-                    mesh.rotation.y += 0.002;
-                    mesh.scale.setScalar(1 + Math.sin(time * 1.5) * 0.1);
-                } else if (index === 1) { // Icosahedron
-                    mesh.rotation.x += 0.002;
-                    mesh.rotation.y -= 0.003;
-                    mesh.position.y = Math.sin(time) * 0.5;
-                } else if (index === 2) { // Helix
-                    mesh.rotation.y += 0.01;
-                    mesh.position.y = Math.sin(time * 0.8) * 0.3;
-                } else if (index === 3) { // Sphere
-                    mesh.rotation.x += 0.004;
-                    mesh.rotation.z += 0.003;
-                    const scale = 1 + Math.sin(time * 3) * 0.2;
-                    mesh.scale.setScalar(scale);
-                }
-            });
-            
-            // Camera movement
-            camera.position.x = Math.sin(time * 0.3) * 0.5 + mouseX * 0.5;
-            camera.position.y = Math.cos(time * 0.2) * 0.3 + mouseY * 0.5 + 1;
-            camera.lookAt(0, 0, 0);
-            
-            // Dynamic color changes
-            if (frameCount % 60 === 0) {
-                meshes.forEach((mesh, index) => {
-                    if (mesh.material) {
-                        const hue = (time * 0.1 + index * 0.25) % 1;
-                        mesh.material.color.setHSL(hue, 0.7, 0.5);
-                    }
-                });
-            }
+        const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+        gradient.addColorStop(0, "rgba(255,255,255,1)");
+        gradient.addColorStop(0.2, "rgba(255,255,255,0.8)");
+        gradient.addColorStop(0.4, "rgba(122,162,247,0.6)");
+        gradient.addColorStop(1, "rgba(122,162,247,0)");
 
-            // Update FPS counter
-            if(frameCount % 30 === 0) {
-                const fps = Math.round(1000 / (performance.now() - lastTime) * 30);
-                document.getElementById('fpsCounter').textContent = `${Math.min(fps, 120)} FPS`;
-                lastTime = performance.now();
-            }
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 32, 32);
 
-            renderer.render(scene, camera);
+        const texture = new THREE.CanvasTexture(canvas);
+        return texture;
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        frameCount++;
+        time += 0.01;
+
+        // Animate particle systems
+        if (particleSystems[0]) {
+          particleSystems[0].rotation.y += 0.0003;
+          particleSystems[0].rotation.x += 0.0002;
+
+          // Wave motion for particles
+          const positions =
+            particleSystems[0].geometry.attributes.position.array;
+          const basePositions = positions.slice();
+          for (let i = 0; i < positions.length; i += 3) {
+            const x = positions[i];
+            const y = positions[i + 1];
+            const z = positions[i + 2];
+
+            positions[i + 1] = y + Math.sin(time + x * 0.5) * 0.02;
+            positions[i] = x + Math.sin(time * 0.7 + z * 0.3) * 0.01;
+          }
+          particleSystems[0].geometry.attributes.position.needsUpdate = true;
         }
 
-        let lastTime = performance.now();
-
-        // Tab management
-        let tabs = [];
-        let activeTabId = null;
-        let tabCounter = 0;
-        
-        function generateTabId() {
-            return `tab-${Date.now()}-${tabCounter++}`;
+        if (particleSystems[1]) {
+          // Energy field rotation and pulsing
+          particleSystems[1].rotation.y += 0.002;
+          particleSystems[1].rotation.z += 0.001;
+          particleSystems[1].scale.setScalar(1 + Math.sin(time * 2) * 0.1);
         }
-        
-        function createTab(title = 'Terminal') {
-            const tabId = generateTabId();
-            const tab = {
-                id: tabId,
-                title: title,
-                sessionId: null
-            };
-            tabs.push(tab);
-            
-            // Create tab element
-            const tabElement = document.createElement('div');
-            tabElement.className = 'tab';
-            tabElement.id = `tab-${tabId}`;
-            tabElement.innerHTML = `
+
+        // Animate meshes
+        meshes.forEach((mesh, index) => {
+          if (index === 0) {
+            // Torus knot
+            mesh.rotation.x += 0.003;
+            mesh.rotation.y += 0.002;
+            mesh.scale.setScalar(1 + Math.sin(time * 1.5) * 0.1);
+          } else if (index === 1) {
+            // Icosahedron
+            mesh.rotation.x += 0.002;
+            mesh.rotation.y -= 0.003;
+            mesh.position.y = Math.sin(time) * 0.5;
+          } else if (index === 2) {
+            // Helix
+            mesh.rotation.y += 0.01;
+            mesh.position.y = Math.sin(time * 0.8) * 0.3;
+          } else if (index === 3) {
+            // Sphere
+            mesh.rotation.x += 0.004;
+            mesh.rotation.z += 0.003;
+            const scale = 1 + Math.sin(time * 3) * 0.2;
+            mesh.scale.setScalar(scale);
+          }
+        });
+
+        // Camera movement
+        camera.position.x = Math.sin(time * 0.3) * 0.5 + mouseX * 0.5;
+        camera.position.y = Math.cos(time * 0.2) * 0.3 + mouseY * 0.5 + 1;
+        camera.lookAt(0, 0, 0);
+
+        // Dynamic color changes
+        if (frameCount % 60 === 0) {
+          meshes.forEach((mesh, index) => {
+            if (mesh.material) {
+              const hue = (time * 0.1 + index * 0.25) % 1;
+              mesh.material.color.setHSL(hue, 0.7, 0.5);
+            }
+          });
+        }
+
+        // Update FPS counter
+        if (frameCount % 30 === 0) {
+          const fps = Math.round((1000 / (performance.now() - lastTime)) * 30);
+          document.getElementById("fpsCounter").textContent = `${Math.min(
+            fps,
+            120
+          )} FPS`;
+          lastTime = performance.now();
+        }
+
+        renderer.render(scene, camera);
+      }
+
+      let lastTime = performance.now();
+
+      // Tab management
+      let tabs = [];
+      let activeTabId = null;
+      let tabCounter = 0;
+
+      function generateTabId() {
+        return `tab-${Date.now()}-${tabCounter++}`;
+      }
+
+      function createTab(title = "Terminal") {
+        const tabId = generateTabId();
+        const tab = {
+          id: tabId,
+          title: title,
+          sessionId: null,
+        };
+        tabs.push(tab);
+
+        // Create tab element
+        const tabElement = document.createElement("div");
+        tabElement.className = "tab";
+        tabElement.id = `tab-${tabId}`;
+        tabElement.innerHTML = `
                 <span class="tab-title">${title}</span>
                 <span class="tab-close" onclick="closeTab('${tabId}')">×</span>
             `;
-            tabElement.onclick = (e) => {
-                if (!e.target.classList.contains('tab-close')) {
-                    switchToTab(tabId);
-                }
-            };
-            
-            // Add before the add button
-            const addBtn = document.querySelector('.add-tab-btn');
-            addBtn.parentNode.insertBefore(tabElement, addBtn);
-            
-            // Create terminal iframe
-            const iframe = document.createElement('iframe');
-            iframe.id = `terminal-${tabId}`;
-            iframe.style.width = '100%';
-            iframe.style.height = '100%';
-            iframe.style.border = 'none';
-            iframe.style.position = 'absolute';
-            iframe.style.display = 'none';
-            document.getElementById('terminals-container').appendChild(iframe);
-            
-            return tabId;
-        }
-        
-        function switchToTab(tabId) {
-            // Hide all terminals and deactivate all tabs
-            tabs.forEach(tab => {
-                const tabElement = document.getElementById(`tab-${tab.id}`);
-                const terminal = document.getElementById(`terminal-${tab.id}`);
-                if (tabElement) tabElement.classList.remove('active');
-                if (terminal) terminal.style.display = 'none';
-            });
-            
-            // Show selected tab and terminal
-            const tabElement = document.getElementById(`tab-${tabId}`);
-            const terminal = document.getElementById(`terminal-${tabId}`);
-            if (tabElement) tabElement.classList.add('active');
-            if (terminal) terminal.style.display = 'block';
-            
-            activeTabId = tabId;
-            
-            // Load terminal if not already loaded
-            const tab = tabs.find(t => t.id === tabId);
-            if (tab && !tab.sessionId) {
-                loadTerminalForTab(tabId);
-            }
-        }
-        
-        function closeTab(tabId) {
-            if (tabs.length <= 1) {
-                alert('Cannot close the last tab');
-                return;
-            }
-            
-            // Remove tab from array
-            const tabIndex = tabs.findIndex(t => t.id === tabId);
-            if (tabIndex === -1) return;
-            
-            tabs.splice(tabIndex, 1);
-            
-            // Remove elements
-            const tabElement = document.getElementById(`tab-${tabId}`);
-            const terminal = document.getElementById(`terminal-${tabId}`);
-            if (tabElement) tabElement.remove();
-            if (terminal) terminal.remove();
-            
-            // Switch to another tab if this was active
-            if (activeTabId === tabId && tabs.length > 0) {
-                switchToTab(tabs[0].id);
-            }
-        }
-        
-        function addNewTab() {
-            const tabNumber = tabs.length + 1;
-            const tabId = createTab(`Terminal ${tabNumber}`);
+        tabElement.onclick = (e) => {
+          if (!e.target.classList.contains("tab-close")) {
             switchToTab(tabId);
+          }
+        };
+
+        // Add before the add button
+        const addBtn = document.querySelector(".add-tab-btn");
+        addBtn.parentNode.insertBefore(tabElement, addBtn);
+
+        // Create terminal iframe
+        const iframe = document.createElement("iframe");
+        iframe.id = `terminal-${tabId}`;
+        iframe.style.width = "100%";
+        iframe.style.height = "100%";
+        iframe.style.border = "none";
+        iframe.style.position = "absolute";
+        iframe.style.display = "none";
+        document.getElementById("terminals-container").appendChild(iframe);
+
+        return tabId;
+      }
+
+      function switchToTab(tabId) {
+        // Hide all terminals and deactivate all tabs
+        tabs.forEach((tab) => {
+          const tabElement = document.getElementById(`tab-${tab.id}`);
+          const terminal = document.getElementById(`terminal-${tab.id}`);
+          if (tabElement) tabElement.classList.remove("active");
+          if (terminal) terminal.style.display = "none";
+        });
+
+        // Show selected tab and terminal
+        const tabElement = document.getElementById(`tab-${tabId}`);
+        const terminal = document.getElementById(`terminal-${tabId}`);
+        if (tabElement) tabElement.classList.add("active");
+        if (terminal) terminal.style.display = "block";
+
+        activeTabId = tabId;
+
+        // Load terminal if not already loaded
+        const tab = tabs.find((t) => t.id === tabId);
+        if (tab && !tab.sessionId) {
+          loadTerminalForTab(tabId);
         }
-        
-        async function loadTerminalForTab(tabId) {
-            const tab = tabs.find(t => t.id === tabId);
-            if (!tab) return;
-            
+      }
+
+      function closeTab(tabId) {
+        if (tabs.length <= 1) {
+          alert("Cannot close the last tab");
+          return;
+        }
+
+        // Remove tab from array
+        const tabIndex = tabs.findIndex((t) => t.id === tabId);
+        if (tabIndex === -1) return;
+
+        tabs.splice(tabIndex, 1);
+
+        // Remove elements
+        const tabElement = document.getElementById(`tab-${tabId}`);
+        const terminal = document.getElementById(`terminal-${tabId}`);
+        if (tabElement) tabElement.remove();
+        if (terminal) terminal.remove();
+
+        // Switch to another tab if this was active
+        if (activeTabId === tabId && tabs.length > 0) {
+          switchToTab(tabs[0].id);
+        }
+      }
+
+      function addNewTab() {
+        const tabNumber = tabs.length + 1;
+        const tabId = createTab(`Terminal ${tabNumber}`);
+        switchToTab(tabId);
+      }
+
+      async function loadTerminalForTab(tabId) {
+        const tab = tabs.find((t) => t.id === tabId);
+        if (!tab) return;
+
+        try {
+          const response = await fetch("/api/terminal-config", {
+            credentials: "same-origin",
+          });
+
+          if (!response.ok) {
+            if (response.status === 401) {
+              window.location.href = "/login";
+              return;
+            }
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const config = await response.json();
+
+          // Check terminal health first if needed
+          if (config.checkHealth) {
             try {
-                const response = await fetch('/api/terminal-config', {
-                    credentials: 'same-origin'
-                });
-                
-                if (!response.ok) {
-                    if (response.status === 401) {
-                        window.location.href = '/login';
-                        return;
-                    }
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const config = await response.json();
-                
-                // Check terminal health first if needed
-                if (config.checkHealth) {
-                    try {
-                        const healthResponse = await fetch('/api/terminal-health', {
-                            credentials: 'same-origin'
-                        });
-                        const health = await healthResponse.json();
-                        
-                        if (!health.available) {
-                            console.log('Terminal server is offline, loading fallback UI');
-                            const frame = document.getElementById(`terminal-${tabId}`);
-                            frame.src = '/terminal-proxy?fallback=true';
-                            return;
-                        }
-                    } catch (err) {
-                        console.log('Health check failed, assuming terminal is offline');
-                    }
-                }
-                
+              const healthResponse = await fetch("/api/terminal-health", {
+                credentials: "same-origin",
+              });
+              const health = await healthResponse.json();
+
+              if (!health.available) {
+                console.log("Terminal server is offline, loading fallback UI");
                 const frame = document.getElementById(`terminal-${tabId}`);
-                // Add unique session identifier to URL
-                frame.src = `${config.url}?session=${tabId}`;
-                tab.sessionId = tabId;
-                
-                frame.onload = () => {
-                    setTimeout(() => {
-                        enhanceTerminal(frame);
-                    }, 1000);
-                };
-                
-            } catch (error) {
-                console.error('Failed to load terminal config:', error);
+                frame.src = "/terminal-proxy?fallback=true";
+                return;
+              }
+            } catch (err) {
+              console.log("Health check failed, assuming terminal is offline");
             }
-        }
-        
-        // Terminal functionality
-        async function initTerminal() {
-            // Hide loading screen first
+          }
+
+          const frame = document.getElementById(`terminal-${tabId}`);
+          // Add unique session identifier to URL
+          frame.src = `${config.url}?session=${tabId}`;
+          tab.sessionId = tabId;
+
+          frame.onload = () => {
             setTimeout(() => {
-                document.getElementById('loadingScreen').style.opacity = '0';
+              enhanceTerminal(frame);
+            }, 1000);
+          };
+        } catch (error) {
+          console.error("Failed to load terminal config:", error);
+        }
+      }
+
+      // Terminal functionality
+      async function initTerminal() {
+        // Hide loading screen first
+        setTimeout(() => {
+          document.getElementById("loadingScreen").style.opacity = "0";
+          setTimeout(() => {
+            document.getElementById("loadingScreen").style.display = "none";
+          }, 500);
+        }, 500);
+
+        // Create first tab
+        const firstTabId = createTab("Terminal 1");
+        switchToTab(firstTabId);
+        try {
+          const response = await fetch("/api/terminal-config", {
+            credentials: "same-origin",
+          });
+
+          if (!response.ok) {
+            if (response.status === 401) {
+              // Redirect to login if unauthorized
+              window.location.href = "/login";
+              return;
+            }
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const config = await response.json();
+
+          // Check terminal health first if needed
+          if (config.checkHealth) {
+            try {
+              const healthResponse = await fetch("/api/terminal-health", {
+                credentials: "same-origin",
+              });
+              const health = await healthResponse.json();
+
+              if (!health.available) {
+                console.log("Terminal server is offline, loading fallback UI");
+                // Load the fallback directly without causing 504
+                const frame = document.getElementById("terminal-frame");
+                frame.src = "/terminal-proxy?fallback=true";
+
                 setTimeout(() => {
-                    document.getElementById('loadingScreen').style.display = 'none';
+                  document.getElementById("loadingScreen").style.display =
+                    "none";
                 }, 500);
-            }, 500);
-            
-            // Create first tab
-            const firstTabId = createTab('Terminal 1');
-            switchToTab(firstTabId);
-            try {
-                const response = await fetch('/api/terminal-config', {
-                    credentials: 'same-origin'
-                });
-                
-                if (!response.ok) {
-                    if (response.status === 401) {
-                        // Redirect to login if unauthorized
-                        window.location.href = '/login';
-                        return;
-                    }
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const config = await response.json();
-                
-                // Check terminal health first if needed
-                if (config.checkHealth) {
-                    try {
-                        const healthResponse = await fetch('/api/terminal-health', {
-                            credentials: 'same-origin'
-                        });
-                        const health = await healthResponse.json();
-                        
-                        if (!health.available) {
-                            console.log('Terminal server is offline, loading fallback UI');
-                            // Load the fallback directly without causing 504
-                            const frame = document.getElementById('terminal-frame');
-                            frame.src = '/terminal-proxy?fallback=true';
-                            
-                            setTimeout(() => {
-                                document.getElementById('loadingScreen').style.display = 'none';
-                            }, 500);
-                            return;
-                        }
-                    } catch (err) {
-                        console.log('Health check failed, assuming terminal is offline');
-                    }
-                }
-                
-            } catch (error) {
-                console.error('Failed to initialize terminal:', error);
-                document.getElementById('loadingScreen').style.display = 'none';
-            }
-        }
-
-        function sendCmd(cmd) {
-            if (!activeTabId) return;
-            
-            const frame = document.getElementById(`terminal-${activeTabId}`);
-            if (!frame || !frame.contentWindow) {
-                console.error('Terminal frame not ready');
                 return;
+              }
+            } catch (err) {
+              console.log("Health check failed, assuming terminal is offline");
             }
-            
-            // Try multiple methods to send the command
-            try {
-                // Method 1: Direct ttyd API if available
-                if (frame.contentWindow.term && frame.contentWindow.term.paste) {
-                    frame.contentWindow.term.paste(cmd);
-                    return;
-                }
-                
-                // Method 2: Send via ttyd's input method
-                if (frame.contentWindow.send) {
-                    frame.contentWindow.send(cmd);
-                    return;
-                }
-                
-                // Method 3: Dispatch keyboard events
-                const doc = frame.contentDocument || frame.contentWindow.document;
-                const activeElement = doc.activeElement || doc.body;
-                
-                for (let i = 0; i < cmd.length; i++) {
-                    const char = cmd[i];
-                    const keyEvent = new KeyboardEvent('keypress', {
-                        key: char,
-                        charCode: char.charCodeAt(0),
-                        keyCode: char.charCodeAt(0),
-                        which: char.charCodeAt(0),
-                        bubbles: true
-                    });
-                    activeElement.dispatchEvent(keyEvent);
-                }
-            } catch (e) {
-                console.error('Failed to send command:', e);
-                
-                // Fallback: Try to focus the terminal and use execCommand
-                try {
-                    frame.contentWindow.focus();
-                    frame.contentDocument.execCommand('insertText', false, cmd);
-                } catch (e2) {
-                    console.error('Fallback also failed:', e2);
-                }
-            }
+          }
+        } catch (error) {
+          console.error("Failed to initialize terminal:", error);
+          document.getElementById("loadingScreen").style.display = "none";
+        }
+      }
+
+      function sendCmd(cmd) {
+        if (!activeTabId) return;
+
+        const frame = document.getElementById(`terminal-${activeTabId}`);
+        if (!frame || !frame.contentWindow) {
+          console.error("Terminal frame not ready");
+          return;
         }
 
-        async function logout() {
-            await fetch('/api/logout', { method: 'POST' });
-            window.location.href = '/login';
-        }
+        // Try multiple methods to send the command
+        try {
+          // Method 1: Direct ttyd API if available
+          if (frame.contentWindow.term && frame.contentWindow.term.paste) {
+            frame.contentWindow.term.paste(cmd);
+            return;
+          }
 
-        // PWA Support
-        let deferredPrompt;
-        
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            document.getElementById('installPrompt').style.display = 'flex';
-        });
+          // Method 2: Send via ttyd's input method
+          if (frame.contentWindow.send) {
+            frame.contentWindow.send(cmd);
+            return;
+          }
 
-        function installPWA() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        console.log('PWA installed');
-                    }
-                    deferredPrompt = null;
-                    document.getElementById('installPrompt').style.display = 'none';
-                });
-            }
-        }
+          // Method 3: Dispatch keyboard events
+          const doc = frame.contentDocument || frame.contentWindow.document;
+          const activeElement = doc.activeElement || doc.body;
 
-        function dismissInstall() {
-            document.getElementById('installPrompt').style.display = 'none';
-        }
-
-        // Service Worker
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').then(reg => {
-                console.log('Service Worker registered');
+          for (let i = 0; i < cmd.length; i++) {
+            const char = cmd[i];
+            const keyEvent = new KeyboardEvent("keypress", {
+              key: char,
+              charCode: char.charCodeAt(0),
+              keyCode: char.charCodeAt(0),
+              which: char.charCodeAt(0),
+              bubbles: true,
             });
-        }
+            activeElement.dispatchEvent(keyEvent);
+          }
+        } catch (e) {
+          console.error("Failed to send command:", e);
 
-        // Window resize
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+          // Fallback: Try to focus the terminal and use execCommand
+          try {
+            frame.contentWindow.focus();
+            frame.contentDocument.execCommand("insertText", false, cmd);
+          } catch (e2) {
+            console.error("Fallback also failed:", e2);
+          }
+        }
+      }
+
+      async function logout() {
+        await fetch("/api/logout", { method: "POST" });
+        window.location.href = "/login";
+      }
+
+      // PWA Support
+      let deferredPrompt;
+
+      window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        document.getElementById("installPrompt").style.display = "flex";
+      });
+
+      function installPWA() {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === "accepted") {
+              console.log("PWA installed");
+            }
+            deferredPrompt = null;
+            document.getElementById("installPrompt").style.display = "none";
+          });
+        }
+      }
+
+      function dismissInstall() {
+        document.getElementById("installPrompt").style.display = "none";
+      }
+
+      // Service Worker
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js").then((reg) => {
+          console.log("Service Worker registered");
         });
+      }
 
-        // Debug terminal iframe
-        function debugTerminal() {
-            if (!activeTabId) {
-                console.log('No active tab');
-                return;
-            }
-            
-            const frame = document.getElementById(`terminal-${activeTabId}`);
-            if (!frame) {
-                console.log('No terminal frame found for tab:', activeTabId);
-                return;
-            }
-            
-            console.log('Terminal frame:', frame);
-            console.log('Frame src:', frame.src);
-            console.log('Frame contentWindow:', frame.contentWindow);
-            
-            try {
-                console.log('Frame document:', frame.contentDocument);
-                console.log('Available in frame:', Object.keys(frame.contentWindow));
-                
-                // Look for ttyd specific objects
-                if (frame.contentWindow.term) {
-                    console.log('Found term object:', frame.contentWindow.term);
-                }
-                if (frame.contentWindow.Terminal) {
-                    console.log('Found Terminal constructor');
-                }
-                if (frame.contentWindow.fit) {
-                    console.log('Found fit addon');
-                }
-            } catch (e) {
-                console.log('Cannot access frame content (cross-origin):', e.message);
-            }
+      // Window resize
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // Debug terminal iframe
+      function debugTerminal() {
+        if (!activeTabId) {
+          console.log("No active tab");
+          return;
         }
-        
-        // Make debug function globally available
-        window.debugTerminal = debugTerminal;
-        
-        // Enhance terminal with better UX
-        function enhanceTerminal(frame) {
-            if (!frame || !frame.contentWindow) return;
-            
-            try {
-                const doc = frame.contentDocument || frame.contentWindow.document;
-                
-                // Inject custom CSS for syntax highlighting
-                const style = doc.createElement('style');
-                style.textContent = `
+
+        const frame = document.getElementById(`terminal-${activeTabId}`);
+        if (!frame) {
+          console.log("No terminal frame found for tab:", activeTabId);
+          return;
+        }
+
+        console.log("Terminal frame:", frame);
+        console.log("Frame src:", frame.src);
+        console.log("Frame contentWindow:", frame.contentWindow);
+
+        try {
+          console.log("Frame document:", frame.contentDocument);
+          console.log("Available in frame:", Object.keys(frame.contentWindow));
+
+          // Look for ttyd specific objects
+          if (frame.contentWindow.term) {
+            console.log("Found term object:", frame.contentWindow.term);
+          }
+          if (frame.contentWindow.Terminal) {
+            console.log("Found Terminal constructor");
+          }
+          if (frame.contentWindow.fit) {
+            console.log("Found fit addon");
+          }
+        } catch (e) {
+          console.log("Cannot access frame content (cross-origin):", e.message);
+        }
+      }
+
+      // Make debug function globally available
+      window.debugTerminal = debugTerminal;
+
+      // Enhance terminal with better UX
+      function enhanceTerminal(frame) {
+        if (!frame || !frame.contentWindow) return;
+
+        try {
+          const doc = frame.contentDocument || frame.contentWindow.document;
+
+          // Inject custom CSS for syntax highlighting
+          const style = doc.createElement("style");
+          style.textContent = `
                     /* Syntax highlighting for common commands */
                     .xterm-screen span {
                         transition: color 0.2s ease;
@@ -1162,46 +1225,45 @@
                         scroll-behavior: smooth;
                     }
                 `;
-                doc.head.appendChild(style);
-                
-                // Add keyboard shortcuts info
-                if (frame.contentWindow.term) {
-                    console.log('Terminal enhanced with custom styling');
-                }
-                
-            } catch (e) {
-                console.log('Could not enhance terminal (cross-origin):', e.message);
-            }
+          doc.head.appendChild(style);
+
+          // Add keyboard shortcuts info
+          if (frame.contentWindow.term) {
+            console.log("Terminal enhanced with custom styling");
+          }
+        } catch (e) {
+          console.log("Could not enhance terminal (cross-origin):", e.message);
         }
-        
-        // Global terminal enhancement for ttyd
-        window.enhanceTerminal = enhanceTerminal;
-        
-        // Initialize when page is fully loaded
-        window.addEventListener('DOMContentLoaded', () => {
-            console.log('DOM loaded, checking THREE.js...');
-            // Check if THREE is loaded
-            if (typeof THREE !== 'undefined') {
-                console.log('THREE.js found, initializing...');
-                initThree();
-            } else {
-                console.log('THREE.js not found yet, waiting...');
-                // Fallback: wait for script to load
-                let attempts = 0;
-                const checkThree = setInterval(() => {
-                    attempts++;
-                    if (typeof THREE !== 'undefined') {
-                        console.log('THREE.js loaded after', attempts, 'attempts');
-                        clearInterval(checkThree);
-                        initThree();
-                    } else if (attempts > 50) {
-                        console.error('THREE.js failed to load after 5 seconds');
-                        clearInterval(checkThree);
-                    }
-                }, 100);
+      }
+
+      // Global terminal enhancement for ttyd
+      window.enhanceTerminal = enhanceTerminal;
+
+      // Initialize when page is fully loaded
+      window.addEventListener("DOMContentLoaded", () => {
+        console.log("DOM loaded, checking THREE.js...");
+        // Check if THREE is loaded
+        if (typeof THREE !== "undefined") {
+          console.log("THREE.js found, initializing...");
+          initThree();
+        } else {
+          console.log("THREE.js not found yet, waiting...");
+          // Fallback: wait for script to load
+          let attempts = 0;
+          const checkThree = setInterval(() => {
+            attempts++;
+            if (typeof THREE !== "undefined") {
+              console.log("THREE.js loaded after", attempts, "attempts");
+              clearInterval(checkThree);
+              initThree();
+            } else if (attempts > 50) {
+              console.error("THREE.js failed to load after 5 seconds");
+              clearInterval(checkThree);
             }
-            initTerminal();
-        });
+          }, 100);
+        }
+        initTerminal();
+      });
     </script>
-</body>
+  </body>
 </html>
