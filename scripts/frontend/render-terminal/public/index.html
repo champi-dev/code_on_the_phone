@@ -167,6 +167,11 @@
 
     <div class="quick-bar">
       <button class="quick-btn" onclick="sendCmd('\x03')">Ctrl+C</button>
+      <button class="quick-btn" onclick="sendCmd('\x1b')">Esc</button>
+      <button class="quick-btn" onclick="sendCmd('\x1b[A')">↑</button>
+      <button class="quick-btn" onclick="sendCmd('\x1b[B')">↓</button>
+      <button class="quick-btn" onclick="sendCmd('\x1b[D')">←</button>
+      <button class="quick-btn" onclick="sendCmd('\x1b[C')">→</button>
       <button class="quick-btn" onclick="sendCmd('clear\n')">Clear</button>
       <button class="quick-btn" onclick="sendCmd('ls -la\n')">
         List Files

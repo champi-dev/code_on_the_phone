@@ -259,6 +259,7 @@
         background: rgba(13, 17, 23, 0.85);
         backdrop-filter: blur(5px);
         animation: terminalGlow 4s ease-in-out infinite alternate;
+        margin-bottom: 60px; /* Account for quick-bar */
       }
 
       @keyframes terminalGlow {
@@ -438,6 +439,47 @@
         cursor: pointer;
       }
 
+      /* Quick bar styles */
+      .quick-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(22, 27, 34, 0.95);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(48, 54, 61, 0.5);
+        padding: 8px;
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        height: 60px;
+        align-items: center;
+        -webkit-overflow-scrolling: touch;
+        z-index: 20;
+      }
+
+      .quick-btn {
+        background: rgba(33, 38, 45, 0.6);
+        border: 1px solid rgba(48, 54, 61, 0.5);
+        border-radius: 6px;
+        padding: 8px 16px;
+        color: #c9d1d9;
+        font-size: 13px;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: all 0.2s;
+        flex-shrink: 0;
+      }
+
+      .quick-btn:hover {
+        background: rgba(48, 54, 61, 0.7);
+        border-color: rgba(122, 162, 247, 0.5);
+      }
+
+      .quick-btn:active {
+        transform: scale(0.95);
+      }
+
       @media (max-width: 640px) {
         .terminal-title {
           font-size: 14px;
@@ -492,7 +534,17 @@
         <div class="terminal-fx"></div>
       </div>
 
-      <!-- Removed quick-bar for cleaner interface -->
+      <!-- Quick bar with mobile controls -->
+      <div class="quick-bar">
+        <button class="quick-btn" onclick="sendCmd('\x03')">Ctrl+C</button>
+        <button class="quick-btn" onclick="sendCmd('\x1b')">Esc</button>
+        <button class="quick-btn" onclick="sendCmd('\x1b[A')">↑</button>
+        <button class="quick-btn" onclick="sendCmd('\x1b[B')">↓</button>
+        <button class="quick-btn" onclick="sendCmd('\x1b[D')">←</button>
+        <button class="quick-btn" onclick="sendCmd('\x1b[C')">→</button>
+        <button class="quick-btn" onclick="sendCmd('clear\n')">Clear</button>
+        <button class="quick-btn" onclick="sendCmd('tmux new-window\n')">New Tab</button>
+      </div>
     </div>
 
     <div class="install-prompt" id="installPrompt">

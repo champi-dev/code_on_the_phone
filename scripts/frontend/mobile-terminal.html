@@ -366,6 +366,12 @@
         New Tab
       </button>
       <button class="quick-action" onclick="sendCommand('clear')">Clear</button>
+      <button class="quick-action" onclick="sendCommand('\x03')">Ctrl+C</button>
+      <button class="quick-action" onclick="sendCommand('\x1b')">Esc</button>
+      <button class="quick-action" onclick="sendCommand('\x1b[A')">↑</button>
+      <button class="quick-action" onclick="sendCommand('\x1b[B')">↓</button>
+      <button class="quick-action" onclick="sendCommand('\x1b[D')">←</button>
+      <button class="quick-action" onclick="sendCommand('\x1b[C')">→</button>
       <button class="quick-action" onclick="sendCommand('python3')">
         Python
       </button>
