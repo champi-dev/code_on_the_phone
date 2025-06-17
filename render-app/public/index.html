@@ -1192,8 +1192,18 @@
       }
 
       async function logout() {
-        await fetch("/api/logout", { method: "POST" });
-        window.location.href = "/login";
+        // Check if reboot on logout is enabled
+        const config = await fetch("/api/terminal-config").then(r => r.json()).catch(() => ({}));
+        const rebootEnabled = config.rebootOnLogout;
+        
+        const confirmMessage = rebootEnabled 
+          ? "⚠️ Warning: Logging out will REBOOT the system!\n\nAre you sure you want to proceed?"
+          : "Are you sure you want to log out?";
+        
+        if (confirm(confirmMessage)) {
+          await fetch("/api/logout", { method: "POST" });
+          window.location.href = "/login";
+        }
       }
 
       // PWA Support

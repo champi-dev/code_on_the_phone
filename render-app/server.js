@@ -159,6 +159,32 @@ app.post('/api/logout', (req, res) => {
     }
     res.clearCookie('sessionId');
     res.json({ success: true });
+    
+    // Trigger system reboot if enabled
+    if (process.env.ENABLE_REBOOT_ON_LOGOUT === 'true') {
+      console.log('Logout detected - initiating system reboot...');
+      const { exec } = require('child_process');
+      
+      // Give the response time to be sent before rebooting
+      setTimeout(() => {
+        // Try different reboot commands for compatibility
+        exec('sudo reboot', (error) => {
+          if (error) {
+            // Try without sudo (if running as root)
+            exec('reboot', (error2) => {
+              if (error2) {
+                // Try systemctl
+                exec('systemctl reboot', (error3) => {
+                  if (error3) {
+                    console.error('Failed to reboot system:', error3);
+                  }
+                });
+              }
+            });
+          }
+        });
+      }, 1000);
+    }
   });
 });
 
@@ -169,7 +195,9 @@ app.get('/api/terminal-config', requireAuth, (req, res) => {
     port: TERMINAL_PORT,
     url: '/terminal-proxy',
     // Add a flag to indicate terminal might be offline
-    checkHealth: true
+    checkHealth: true,
+    // Include reboot on logout status
+    rebootOnLogout: process.env.ENABLE_REBOOT_ON_LOGOUT === 'true'
   });
 });
 

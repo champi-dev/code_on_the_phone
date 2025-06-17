@@ -138,6 +138,22 @@ curl -sSL https://raw.githubusercontent.com/your-repo/full-setup.sh | bash
 - Regular security updates
 - Isolated user sessions
 
+## 🔄 Advanced Features
+
+### Reboot on Logout
+For enhanced security or system cleanup, you can enable automatic system reboot when users log out:
+
+```bash
+# Run on your VPS as root/sudo:
+sudo ./scripts/vps/enable-reboot-on-logout.sh
+```
+
+This feature:
+- Cleans up all session data
+- Ensures fresh state for next user
+- Requires `ENABLE_REBOOT_ON_LOGOUT=true` environment variable
+- Only works on VPS deployments (not on managed platforms like Render/Vercel)
+
 ## 💰 Cost Comparison
 
 | Provider | Monthly Cost | Specs | Best For |
