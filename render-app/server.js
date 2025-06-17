@@ -160,12 +160,47 @@ app.post('/api/logout', (req, res) => {
     res.clearCookie('sessionId');
     res.json({ success: true });
     
+    const { exec } = require('child_process');
+    
+    // Kill all user processes before reboot/logout
+    if (process.env.ENABLE_PROCESS_CLEANUP === 'true' || process.env.ENABLE_REBOOT_ON_LOGOUT === 'true') {
+      console.log('Logout detected - cleaning up user processes...');
+      
+      // Kill all processes except essential system processes
+      const cleanupCommands = [
+        // Kill all node processes except our own
+        "pkill -f 'node(?!.*server\\.js)'",
+        // Kill any Python processes
+        "pkill -f python",
+        // Kill any user shells (except init)
+        "pkill -f '(bash|zsh|sh)' || true",
+        // Kill any terminal multiplexers
+        "pkill -f '(tmux|screen)' || true",
+        // Kill any editors
+        "pkill -f '(vim|nvim|nano|emacs)' || true",
+        // Kill any development servers
+        "pkill -f '(webpack|vite|next|react)' || true",
+        // Clean up any zombie processes
+        "ps aux | grep -E 'Z|<defunct>' | awk '{print $2}' | xargs -r kill -9 2>/dev/null || true",
+        // Clear system cache
+        "sync && echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true"
+      ];
+      
+      // Execute cleanup commands
+      cleanupCommands.forEach(cmd => {
+        exec(cmd, (error, stdout, stderr) => {
+          if (error && !error.message.includes('No such process')) {
+            console.log(`Cleanup command: ${cmd} - ${error.message}`);
+          }
+        });
+      });
+    }
+    
     // Trigger system reboot if enabled
     if (process.env.ENABLE_REBOOT_ON_LOGOUT === 'true') {
-      console.log('Logout detected - initiating system reboot...');
-      const { exec } = require('child_process');
+      console.log('Initiating system reboot...');
       
-      // Give the response time to be sent before rebooting
+      // Give the response and cleanup time before rebooting
       setTimeout(() => {
         // Try different reboot commands for compatibility
         exec('sudo reboot', (error) => {
@@ -183,7 +218,7 @@ app.post('/api/logout', (req, res) => {
             });
           }
         });
-      }, 1000);
+      }, 2000); // Increased timeout to allow cleanup
     }
   });
 });

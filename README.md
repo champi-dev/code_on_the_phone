@@ -140,6 +140,15 @@ curl -sSL https://raw.githubusercontent.com/your-repo/full-setup.sh | bash
 
 ## 🔄 Advanced Features
 
+### Process Cleanup on Logout
+Automatically kills all user processes when logging out to free up system resources:
+
+- Kills all non-essential processes (Python, Node.js, editors, etc.)
+- Clears system memory caches
+- Frees up swap space
+- Enabled by default when `ENABLE_REBOOT_ON_LOGOUT=true`
+- Can be enabled separately with `ENABLE_PROCESS_CLEANUP=true`
+
 ### Reboot on Logout
 For enhanced security or system cleanup, you can enable automatic system reboot when users log out:
 
@@ -149,10 +158,26 @@ sudo ./scripts/vps/enable-reboot-on-logout.sh
 ```
 
 This feature:
+- Kills all user processes before reboot
 - Cleans up all session data
 - Ensures fresh state for next user
 - Requires `ENABLE_REBOOT_ON_LOGOUT=true` environment variable
 - Only works on VPS deployments (not on managed platforms like Render/Vercel)
+
+### Manual System Cleanup
+For aggressive system cleanup without reboot:
+
+```bash
+# Run on your VPS as root/sudo:
+sudo ./scripts/vps/aggressive-cleanup.sh
+```
+
+This will:
+- Kill all non-essential processes
+- Free up memory and swap
+- Clean package manager caches
+- Remove old logs and temp files
+- Close unnecessary network connections
 
 ## 💰 Cost Comparison
 

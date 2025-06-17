@@ -27,8 +27,8 @@ APP_USER=${APP_USER:-cloud}
 # Create sudoers entry to allow the app user to reboot without password
 echo -e "${GREEN}📝 Adding sudoers entry for ${APP_USER}...${NC}"
 cat > /etc/sudoers.d/allow-reboot << EOF
-# Allow the application user to reboot the system
-${APP_USER} ALL=(ALL) NOPASSWD: /sbin/reboot, /usr/sbin/reboot, /bin/systemctl reboot
+# Allow the application user to reboot the system and run cleanup commands
+${APP_USER} ALL=(ALL) NOPASSWD: /sbin/reboot, /usr/sbin/reboot, /bin/systemctl reboot, /usr/bin/pkill, /bin/kill, /usr/bin/killall, /bin/ps, /usr/bin/sync, /bin/echo
 EOF
 
 # Set proper permissions
