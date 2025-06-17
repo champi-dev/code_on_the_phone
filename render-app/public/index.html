@@ -260,6 +260,14 @@
         backdrop-filter: blur(5px);
         animation: terminalGlow 4s ease-in-out infinite alternate;
         margin-bottom: 60px; /* Account for quick-bar */
+        overflow: hidden; /* Prevent iframe from overflowing */
+      }
+
+      #terminals-container {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        overflow: hidden; /* Ensure iframes stay within bounds */
       }
 
       @keyframes terminalGlow {
@@ -455,7 +463,7 @@
         height: 60px;
         align-items: center;
         -webkit-overflow-scrolling: touch;
-        z-index: 20;
+        z-index: 30; /* Higher than terminal-header (20) */
       }
 
       .quick-btn {
@@ -958,6 +966,8 @@
         iframe.style.height = "100%";
         iframe.style.border = "none";
         iframe.style.position = "absolute";
+        iframe.style.top = "0";
+        iframe.style.left = "0";
         iframe.style.display = "none";
         document.getElementById("terminals-container").appendChild(iframe);
 

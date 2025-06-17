@@ -104,8 +104,8 @@ Use our pre-built frontend with your VPS:
 
 All options work great on mobile! The web interface includes:
 - Responsive design
-- Quick command buttons
-- Touch-friendly controls
+- Quick command buttons (Ctrl+C, Esc, arrow keys, Clear, New Tab)
+- Touch-friendly controls with persistent visibility
 - Persistent sessions
 
 ## 🛠️ Installation Scripts
