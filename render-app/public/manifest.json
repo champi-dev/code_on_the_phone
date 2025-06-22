@@ -41,5 +41,17 @@
     "Cross Platform",
     "Offline Capable",
     "120fps Performance"
-  ]
+  ],
+  "permissions": [
+    "background-sync",
+    "periodic-background-sync",
+    "wake-lock",
+    "storage",
+    "idle-detection"
+  ],
+  "prefer_related_applications": false,
+  "scope": "/",
+  "launch_handler": {
+    "route_to": "existing-client-retain"
+  }
 }

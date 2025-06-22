@@ -1,10 +1,16 @@
 // Service Worker for PWA functionality
-const CACHE_NAME = 'cloud-terminal-v11';
+const CACHE_NAME = 'cloud-terminal-v12';
 const urlsToCache = [
   '/manifest.json',
   '/icon.svg',
-  '/js/three.min.js'
+  '/js/three.min.js',
+  '/js/terminal-persistence.js'
 ];
+
+// Background sync and keepalive state
+let keepAliveInterval = 30000;
+let keepAliveTimer = null;
+let registeredTabs = new Set();
 
 // Install event - cache resources
 self.addEventListener('install', event => {
@@ -95,10 +101,110 @@ self.addEventListener('fetch', event => {
 self.addEventListener('sync', event => {
   if (event.tag === 'sync-commands') {
     event.waitUntil(syncCommands());
+  } else if (event.tag === 'keepalive') {
+    event.waitUntil(sendKeepAliveToClients());
   }
 });
 
 async function syncCommands() {
   // Sync any queued terminal commands when back online
   console.log('Syncing offline commands...');
+}
+
+// Message handling from clients
+self.addEventListener('message', event => {
+  const { type, data } = event.data || {};
+  
+  switch (type) {
+    case 'init':
+      handleInit(event.data);
+      break;
+    case 'updateInterval':
+      keepAliveInterval = event.data.keepAliveInterval || 30000;
+      restartKeepAliveTimer();
+      break;
+    case 'background':
+      handleBackground(event.data);
+      break;
+    case 'registerTab':
+      registeredTabs.add(event.data.tabId);
+      break;
+    case 'unregisterTab':
+      registeredTabs.delete(event.data.tabId);
+      break;
+  }
+});
+
+function handleInit(data) {
+  keepAliveInterval = data.keepAliveInterval || 30000;
+  startKeepAliveTimer();
+}
+
+function handleBackground(data) {
+  if (data.tabs) {
+    data.tabs.forEach(tabId => registeredTabs.add(tabId));
+  }
+  // Continue keepalive in background
+  restartKeepAliveTimer();
+}
+
+function startKeepAliveTimer() {
+  if (keepAliveTimer) return;
+  
+  keepAliveTimer = setInterval(() => {
+    sendKeepAliveToClients();
+  }, keepAliveInterval);
+}
+
+function stopKeepAliveTimer() {
+  if (keepAliveTimer) {
+    clearInterval(keepAliveTimer);
+    keepAliveTimer = null;
+  }
+}
+
+function restartKeepAliveTimer() {
+  stopKeepAliveTimer();
+  startKeepAliveTimer();
+}
+
+async function sendKeepAliveToClients() {
+  const clients = await self.clients.matchAll({
+    includeUncontrolled: true,
+    type: 'window'
+  });
+  
+  clients.forEach(client => {
+    client.postMessage({
+      type: 'keepalive',
+      timestamp: Date.now()
+    });
+  });
+}
+
+// Periodic sync for background updates
+self.addEventListener('periodicsync', event => {
+  if (event.tag === 'terminal-keepalive') {
+    event.waitUntil(handlePeriodicSync());
+  }
+});
+
+async function handlePeriodicSync() {
+  console.log('Periodic sync: maintaining terminal connections');
+  await sendKeepAliveToClients();
+  
+  // Check if we should trigger reconnections
+  const clients = await self.clients.matchAll({
+    includeUncontrolled: true,
+    type: 'window'
+  });
+  
+  if (clients.length > 0) {
+    clients.forEach(client => {
+      client.postMessage({
+        type: 'reconnect',
+        timestamp: Date.now()
+      });
+    });
+  }
 }

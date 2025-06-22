@@ -500,6 +500,8 @@
       }
     </style>
     <script src="/js/three.min.js"></script>
+    <script src="/js/terminal-persistence.js"></script>
+    <script src="/js/wake-lock.js"></script>
   </head>
   <body>
     <div class="loading-screen" id="loadingScreen">
@@ -927,6 +929,8 @@
       let tabs = [];
       let activeTabId = null;
       let tabCounter = 0;
+      let persistenceManager = null;
+      let wakeLockManager = null;
 
       function generateTabId() {
         return `tab-${Date.now()}-${tabCounter++}`;
@@ -970,6 +974,11 @@
         iframe.style.left = "0";
         iframe.style.display = "none";
         document.getElementById("terminals-container").appendChild(iframe);
+
+        // Register with persistence manager
+        if (persistenceManager) {
+          persistenceManager.registerTab(tabId, iframe);
+        }
 
         return tabId;
       }
@@ -1015,6 +1024,11 @@
         const terminal = document.getElementById(`terminal-${tabId}`);
         if (tabElement) tabElement.remove();
         if (terminal) terminal.remove();
+
+        // Unregister from persistence manager
+        if (persistenceManager) {
+          persistenceManager.unregisterTab(tabId);
+        }
 
         // Switch to another tab if this was active
         if (activeTabId === tabId && tabs.length > 0) {
@@ -1074,6 +1088,10 @@
           frame.onload = () => {
             setTimeout(() => {
               enhanceTerminal(frame);
+              // Re-register with persistence manager after reload
+              if (persistenceManager) {
+                persistenceManager.registerTab(tabId, frame);
+              }
             }, 1000);
           };
         } catch (error) {
@@ -1232,10 +1250,28 @@
         document.getElementById("installPrompt").style.display = "none";
       }
 
-      // Service Worker
+      // Service Worker and Persistence Manager
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/sw.js").then((reg) => {
           console.log("Service Worker registered");
+          
+          // Initialize persistence manager after service worker is ready
+          navigator.serviceWorker.ready.then(() => {
+            persistenceManager = new TerminalPersistenceManager();
+            console.log("Terminal persistence manager initialized");
+            
+            // Initialize wake lock manager
+            wakeLockManager = new WakeLockManager();
+            console.log("Wake lock manager initialized");
+            
+            // Register existing tabs
+            tabs.forEach(tab => {
+              const iframe = document.getElementById(`terminal-${tab.id}`);
+              if (iframe) {
+                persistenceManager.registerTab(tab.id, iframe);
+              }
+            });
+          });
         });
       }
 
