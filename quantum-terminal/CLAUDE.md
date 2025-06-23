@@ -79,7 +79,7 @@ The Makefile handles cross-platform builds with platform detection:
 
 ## C Port Subproject
 
-The repository contains a C port of a cloud terminal server in the `c-port/` directory:
+The repository contains a C port of a terminal server in the `c-port/` directory:
 
 ### C Port Build Commands
 ```bash

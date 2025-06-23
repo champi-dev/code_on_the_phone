@@ -1,4 +1,4 @@
-# Cloud Terminal C Port - Makefile
+# Terminal C Port - Makefile
 # High-performance build configuration
 
 CC = clang
@@ -51,7 +51,7 @@ ALL_SRCS = $(SERVER_SRCS) $(AUTH_SRCS) $(PROXY_SRCS) $(UTILS_SRCS) $(STATIC_SRCS
 OBJS = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(ALL_SRCS))
 
 # Main target
-TARGET = $(BINDIR)/cloudterm
+TARGET = $(BINDIR)/terminal
 
 # Test files
 TEST_SRCS = $(wildcard $(TESTDIR)/*.c)
@@ -101,8 +101,8 @@ PREFIX ?= /usr/local
 install: $(TARGET)
 	install -d $(PREFIX)/bin
 	install -m 755 $(TARGET) $(PREFIX)/bin/
-	install -d $(PREFIX)/share/cloudterm
-	cp -r ../render-app/public $(PREFIX)/share/cloudterm/
+	install -d $(PREFIX)/share/terminal
+	cp -r ../render-app/public $(PREFIX)/share/terminal/
 
 # Development helpers
 format:

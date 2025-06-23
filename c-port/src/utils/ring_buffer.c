@@ -1,4 +1,4 @@
-#include "cloudterm.h"
+#include "terminal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdatomic.h>

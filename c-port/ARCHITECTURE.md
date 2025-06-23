@@ -1,4 +1,4 @@
-# Cloud Terminal C Port - Architecture Design
+# Terminal C Port - Architecture Design
 
 ## Core Design Principles
 - **O(1) or O(log n) complexity** for all core operations

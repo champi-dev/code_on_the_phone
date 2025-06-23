@@ -1,5 +1,5 @@
-#ifndef CLOUDTERM_H
-#define CLOUDTERM_H
+#ifndef TERMINAL_H
+#define TERMINAL_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -305,4 +305,4 @@ ct_rb_node_t *ct_rb_find_min(ct_rb_node_t *root);
 }
 #endif
 
-#endif /* CLOUDTERM_H */
+#endif /* TERMINAL_H */

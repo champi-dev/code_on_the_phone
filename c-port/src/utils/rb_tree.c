@@ -1,4 +1,4 @@
-#include "cloudterm.h"
+#include "terminal.h"
 #include <stdlib.h>
 #include <assert.h>
 

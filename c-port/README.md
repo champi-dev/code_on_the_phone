@@ -1,4 +1,4 @@
-# CloudTerm C Port - Progress Report
+# Terminal C Port - Progress Report
 
 ## ✅ Completed
 
@@ -44,7 +44,7 @@ make test
 
 # Profile-guided optimization
 make pgo-generate
-./bin/cloudterm  # Run with typical workload
+./bin/terminal  # Run with typical workload
 make pgo-use
 ```
 

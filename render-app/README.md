@@ -1,6 +1,6 @@
-# Cloud Terminal 3D - Render Deployment
+# Terminal 3D - Render Deployment
 
-Award-winning cloud terminal with Three.js animations, PWA support, and password protection.
+Award-winning terminal with Three.js animations, PWA support, and password protection.
 
 ## Features
 
@@ -15,7 +15,7 @@ Award-winning cloud terminal with Three.js animations, PWA support, and password
 1. **Push to GitHub**:
    ```bash
    git add render-app/
-   git commit -m "Add Cloud Terminal 3D"
+   git commit -m "Add Terminal 3D"
    git push
    ```
 
@@ -35,7 +35,7 @@ Award-winning cloud terminal with Three.js animations, PWA support, and password
    PASSWORD_HASH=$2a$10$xK1.BKDWYUQvtVl.W3Mjz.8rZKgX6IH5EYXL3jN8ifYJnL3GpXWlm
    ```
 
-   Default password is `cloudterm123`. To change:
+   Default password is `terminal123`. To change:
    ```bash
    node -e "console.log(require('bcryptjs').hashSync('your-new-password', 10))"
    ```
