@@ -88,4 +88,48 @@ $(BINDIR)/quantum-terminal: $(CORE_SRCS) $(PLATFORM_SRCS)
 clean:
 	rm -rf $(OBJDIR) $(BINDIR)
 
-.PHONY: all dirs macos ios android wasm clean
+# Windows cross-compilation
+windows:
+	@echo "Building Quantum Terminal for Windows..."
+	@mkdir -p build/windows
+	x86_64-w64-mingw32-gcc -o build/windows/quantum-terminal.exe \
+		src/platform/windows.c src/quantum.c src/renderer.c \
+		-lopengl32 -lglu32 -luser32 -lgdi32 -static
+	@echo "✅ Windows build complete!"
+
+# Linux with GTK
+linux-gtk:
+	@echo "Building Quantum Terminal for Linux (GTK)..."
+	@mkdir -p build/linux
+	gcc -o build/linux/quantum-terminal-gtk \
+		src/platform/linux_gtk.c src/quantum.c src/renderer.c \
+		`pkg-config --cflags --libs gtk+-3.0 vte-2.91` \
+		-lGL -lGLU -lm -O3
+	@echo "✅ Linux GTK build complete!"
+
+# Universal AppImage
+appimage: linux-gtk
+	@echo "Creating AppImage..."
+	@mkdir -p build/appimage/usr/bin
+	@cp build/linux/quantum-terminal-gtk build/appimage/usr/bin/
+	@cp resources/quantum-terminal.desktop build/appimage/
+	@cp resources/icon.png build/appimage/
+	appimagetool build/appimage build/QuantumTerminal.AppImage
+	@echo "✅ AppImage created!"
+
+# Snap package
+snap:
+	@echo "Building Snap package..."
+	snapcraft
+	@echo "✅ Snap package built!"
+
+# Cocoa terminal (your current implementation)
+cocoa:
+	@echo "Building Cocoa Terminal..."
+	clang -framework Cocoa -framework OpenGL -framework Foundation \
+		-o cocoa_terminal src/cocoa_terminal.m \
+		-fobjc-arc -DGL_SILENCE_DEPRECATION \
+		-Wall -O2
+	@echo "✅ Cocoa Terminal built!"
+
+.PHONY: all dirs macos ios android wasm clean windows linux-gtk appimage snap cocoa
