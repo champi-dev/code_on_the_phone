@@ -1,0 +1,3 @@
+2025/06/24 17:39:20 Quantum Terminal Backend starting on port 8080
+2025/06/24 17:39:20 ListenAndServe: listen tcp :8080: bind: address already in use
+exit status 1
