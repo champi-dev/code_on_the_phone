@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:xterm/xterm.dart';
 import '../widgets/quantum_animation_overlay.dart';
+import '../widgets/terminal_3d_effects.dart';
 import '../widgets/connection_status.dart';
 import '../services/terminal_service.dart';
 import '../services/animation_service.dart';
@@ -16,6 +17,7 @@ class TerminalScreen extends StatefulWidget {
 class _TerminalScreenState extends State<TerminalScreen> {
   late Terminal terminal;
   late TerminalController terminalController;
+  String currentCommand = '';
 
   @override
   void initState() {
@@ -24,6 +26,24 @@ class _TerminalScreenState extends State<TerminalScreen> {
       maxLines: 10000,
     );
     terminalController = TerminalController();
+    
+    // Listen for terminal input for 3D effects
+    terminal.onInput = (String input) {
+      setState(() {
+        if (input == '\r' || input == '\n') {
+          // Trigger 3D effect based on command
+          context.read<AnimationService>().triggerAnimation(currentCommand);
+          currentCommand = '';
+        } else if (input == '\x7f') {
+          // Backspace
+          if (currentCommand.isNotEmpty) {
+            currentCommand = currentCommand.substring(0, currentCommand.length - 1);
+          }
+        } else {
+          currentCommand += input;
+        }
+      });
+    };
     
     // Connect to backend
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -179,6 +199,14 @@ class _TerminalScreenState extends State<TerminalScreen> {
           
           // Quantum animation overlay
           const QuantumAnimationOverlay(),
+          
+          // Award-winning 3D effects overlay
+          Terminal3DEffects(
+            currentCommand: currentCommand,
+            onEffectComplete: () {
+              // Effect completed callback if needed
+            },
+          ),
         ],
       ),
     );

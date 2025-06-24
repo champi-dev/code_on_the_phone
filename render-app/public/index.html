@@ -582,6 +582,15 @@
       let meshes = [];
       let particleSystems = [];
       let time = 0;
+      
+      // Award-winning animation systems
+      let galaxySystem = null;
+      let quantumField = null;
+      let holographicDisplay = null;
+      let neuralNetwork = null;
+      let matrixRain = null;
+      let commandEffects = new Map();
+      let activeEffects = [];
 
       function initThree() {
         console.log("initThree called, creating scene...");
@@ -759,6 +768,13 @@
 
           camera.position.z = 5;
           camera.position.y = 1;
+          
+          // Initialize award-winning animation systems
+          createGalaxySystem();
+          createQuantumField();
+          createHolographicDisplay();
+          createNeuralNetwork();
+          createMatrixRain();
 
           // Mouse movement
           document.addEventListener("mousemove", (e) => {
@@ -798,6 +814,339 @@
 
         const texture = new THREE.CanvasTexture(canvas);
         return texture;
+      }
+      
+      // Award-winning 3D animation systems
+      function createGalaxySystem() {
+        const galaxyGeometry = new THREE.BufferGeometry();
+        const galaxyCount = 50000;
+        const positions = new Float32Array(galaxyCount * 3);
+        const colors = new Float32Array(galaxyCount * 3);
+        const sizes = new Float32Array(galaxyCount);
+        
+        for (let i = 0; i < galaxyCount; i++) {
+          const i3 = i * 3;
+          const angle = Math.random() * Math.PI * 2;
+          const radius = Math.random() * 15;
+          const spinAngle = radius * 0.5;
+          
+          positions[i3] = Math.cos(angle + spinAngle) * radius;
+          positions[i3 + 1] = (Math.random() - 0.5) * 2 * Math.exp(-radius / 10);
+          positions[i3 + 2] = Math.sin(angle + spinAngle) * radius;
+          
+          const color = new THREE.Color();
+          color.setHSL(0.6 + (radius / 15) * 0.4, 0.8, 0.6);
+          colors[i3] = color.r;
+          colors[i3 + 1] = color.g;
+          colors[i3 + 2] = color.b;
+          
+          sizes[i] = Math.random() * 0.03 + 0.01;
+        }
+        
+        galaxyGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        galaxyGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        galaxyGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+        
+        const galaxyMaterial = new THREE.PointsMaterial({
+          size: 0.02,
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.8,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          map: createGlowTexture()
+        });
+        
+        galaxySystem = new THREE.Points(galaxyGeometry, galaxyMaterial);
+        galaxySystem.visible = false;
+        scene.add(galaxySystem);
+      }
+      
+      function createQuantumField() {
+        const fieldGeometry = new THREE.PlaneGeometry(30, 30, 64, 64);
+        const fieldMaterial = new THREE.ShaderMaterial({
+          uniforms: {
+            time: { value: 0 },
+            mousePos: { value: new THREE.Vector2(0, 0) }
+          },
+          vertexShader: `
+            uniform float time;
+            uniform vec2 mousePos;
+            varying vec2 vUv;
+            varying float vElevation;
+            
+            void main() {
+              vUv = uv;
+              vec3 pos = position;
+              
+              float dist = length(uv - mousePos);
+              float wave = sin(dist * 10.0 - time * 3.0) * 0.5;
+              float quantum = sin(pos.x * 2.0 + time) * cos(pos.y * 2.0 + time) * 0.3;
+              
+              pos.z = wave + quantum;
+              vElevation = pos.z;
+              
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform float time;
+            varying vec2 vUv;
+            varying float vElevation;
+            
+            void main() {
+              vec3 color1 = vec3(0.48, 0.63, 0.97);
+              vec3 color2 = vec3(0.73, 0.60, 0.97);
+              vec3 color3 = vec3(0.62, 0.81, 0.42);
+              
+              float mixFactor = (sin(time * 0.5) + 1.0) * 0.5;
+              vec3 mixedColor = mix(color1, color2, vElevation + 0.5);
+              mixedColor = mix(mixedColor, color3, mixFactor * 0.3);
+              
+              float alpha = 0.3 + vElevation * 0.3;
+              gl_FragColor = vec4(mixedColor, alpha);
+            }
+          `,
+          transparent: true,
+          side: THREE.DoubleSide,
+          depthWrite: false
+        });
+        
+        quantumField = new THREE.Mesh(fieldGeometry, fieldMaterial);
+        quantumField.rotation.x = -Math.PI / 2;
+        quantumField.position.y = -3;
+        quantumField.visible = false;
+        scene.add(quantumField);
+      }
+      
+      function createHolographicDisplay() {
+        const hologramGroup = new THREE.Group();
+        
+        // Create holographic text planes
+        const textGeometry = new THREE.PlaneGeometry(8, 2);
+        const hologramMaterial = new THREE.ShaderMaterial({
+          uniforms: {
+            time: { value: 0 },
+            opacity: { value: 0.8 }
+          },
+          vertexShader: `
+            varying vec2 vUv;
+            void main() {
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform float time;
+            uniform float opacity;
+            varying vec2 vUv;
+            
+            void main() {
+              vec3 color = vec3(0.0, 1.0, 0.8);
+              float scanline = sin(vUv.y * 100.0 + time * 5.0) * 0.1 + 0.9;
+              float glitch = step(0.98, sin(time * 20.0)) * 0.05;
+              
+              vec3 finalColor = color * scanline;
+              float alpha = opacity * (1.0 - glitch) * (0.5 + sin(vUv.x * 10.0 + time * 2.0) * 0.5);
+              
+              gl_FragColor = vec4(finalColor, alpha);
+            }
+          `,
+          transparent: true,
+          side: THREE.DoubleSide,
+          depthWrite: false
+        });
+        
+        for (let i = 0; i < 5; i++) {
+          const plane = new THREE.Mesh(textGeometry, hologramMaterial.clone());
+          plane.position.set(
+            Math.cos(i * Math.PI * 2 / 5) * 4,
+            Math.sin(i * 2) * 0.5,
+            Math.sin(i * Math.PI * 2 / 5) * 4
+          );
+          plane.lookAt(0, 0, 0);
+          hologramGroup.add(plane);
+        }
+        
+        holographicDisplay = hologramGroup;
+        holographicDisplay.visible = false;
+        scene.add(holographicDisplay);
+      }
+      
+      function createNeuralNetwork() {
+        const nodeCount = 50;
+        const nodes = [];
+        const connections = [];
+        
+        // Create nodes
+        const nodeGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+        const nodeMaterial = new THREE.MeshBasicMaterial({
+          color: 0x00ff88,
+          emissive: 0x00ff88,
+          emissiveIntensity: 0.5
+        });
+        
+        for (let i = 0; i < nodeCount; i++) {
+          const node = new THREE.Mesh(nodeGeometry, nodeMaterial.clone());
+          node.position.set(
+            (Math.random() - 0.5) * 10,
+            (Math.random() - 0.5) * 10,
+            (Math.random() - 0.5) * 10
+          );
+          nodes.push(node);
+        }
+        
+        // Create connections
+        const connectionMaterial = new THREE.LineBasicMaterial({
+          color: 0x00ff88,
+          transparent: true,
+          opacity: 0.3
+        });
+        
+        for (let i = 0; i < nodeCount; i++) {
+          for (let j = i + 1; j < nodeCount; j++) {
+            if (Math.random() < 0.1) {
+              const points = [nodes[i].position, nodes[j].position];
+              const geometry = new THREE.BufferGeometry().setFromPoints(points);
+              const line = new THREE.Line(geometry, connectionMaterial);
+              connections.push({ line, nodes: [i, j] });
+            }
+          }
+        }
+        
+        const networkGroup = new THREE.Group();
+        nodes.forEach(node => networkGroup.add(node));
+        connections.forEach(conn => networkGroup.add(conn.line));
+        
+        neuralNetwork = { group: networkGroup, nodes, connections };
+        neuralNetwork.group.visible = false;
+        scene.add(neuralNetwork.group);
+      }
+      
+      function createMatrixRain() {
+        const rainGroup = new THREE.Group();
+        const columnCount = 50;
+        const dropCount = 20;
+        
+        for (let i = 0; i < columnCount; i++) {
+          for (let j = 0; j < dropCount; j++) {
+            const textGeometry = new THREE.PlaneGeometry(0.3, 0.3);
+            const textMaterial = new THREE.MeshBasicMaterial({
+              color: new THREE.Color(0, 1, 0),
+              transparent: true,
+              opacity: 1 - (j / dropCount),
+              side: THREE.DoubleSide
+            });
+            
+            const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+            textMesh.position.set(
+              (i - columnCount / 2) * 0.5,
+              10 - j * 0.5,
+              -5
+            );
+            
+            textMesh.userData = {
+              column: i,
+              row: j,
+              speed: 0.1 + Math.random() * 0.1
+            };
+            
+            rainGroup.add(textMesh);
+          }
+        }
+        
+        matrixRain = rainGroup;
+        matrixRain.visible = false;
+        scene.add(matrixRain);
+      }
+      
+      // Command-triggered effects
+      function triggerCommandEffect(command) {
+        const cmd = command.toLowerCase().trim();
+        
+        if (cmd.includes('git')) {
+          activateEffect('galaxy');
+        } else if (cmd.includes('npm') || cmd.includes('node')) {
+          activateEffect('quantum');
+        } else if (cmd.includes('ssh') || cmd.includes('connect')) {
+          activateEffect('hologram');
+        } else if (cmd.includes('python') || cmd.includes('ai')) {
+          activateEffect('neural');
+        } else if (cmd.includes('hack') || cmd.includes('sudo')) {
+          activateEffect('matrix');
+        } else if (cmd === 'clear') {
+          deactivateAllEffects();
+        }
+      }
+      
+      function activateEffect(effectName) {
+        // Deactivate previous effects smoothly
+        activeEffects.forEach(effect => {
+          if (effect !== effectName) {
+            deactivateEffect(effect);
+          }
+        });
+        
+        switch (effectName) {
+          case 'galaxy':
+            if (galaxySystem) {
+              galaxySystem.visible = true;
+              activeEffects.push('galaxy');
+            }
+            break;
+          case 'quantum':
+            if (quantumField) {
+              quantumField.visible = true;
+              activeEffects.push('quantum');
+            }
+            break;
+          case 'hologram':
+            if (holographicDisplay) {
+              holographicDisplay.visible = true;
+              activeEffects.push('hologram');
+            }
+            break;
+          case 'neural':
+            if (neuralNetwork) {
+              neuralNetwork.group.visible = true;
+              activeEffects.push('neural');
+            }
+            break;
+          case 'matrix':
+            if (matrixRain) {
+              matrixRain.visible = true;
+              activeEffects.push('matrix');
+            }
+            break;
+        }
+      }
+      
+      function deactivateEffect(effectName) {
+        switch (effectName) {
+          case 'galaxy':
+            if (galaxySystem) galaxySystem.visible = false;
+            break;
+          case 'quantum':
+            if (quantumField) quantumField.visible = false;
+            break;
+          case 'hologram':
+            if (holographicDisplay) holographicDisplay.visible = false;
+            break;
+          case 'neural':
+            if (neuralNetwork) neuralNetwork.group.visible = false;
+            break;
+          case 'matrix':
+            if (matrixRain) matrixRain.visible = false;
+            break;
+        }
+        activeEffects = activeEffects.filter(e => e !== effectName);
+      }
+      
+      function deactivateAllEffects() {
+        ['galaxy', 'quantum', 'hologram', 'neural', 'matrix'].forEach(effect => {
+          deactivateEffect(effect);
+        });
+        activeEffects = [];
       }
 
       // Optimized animation variables
@@ -918,6 +1267,62 @@
           if (fpsElement) {
             fpsElement.textContent = `${Math.min(currentFPS, 120)} FPS`;
           }
+        }
+        
+        // Animate award-winning effects
+        if (galaxySystem && galaxySystem.visible) {
+          galaxySystem.rotation.y += 0.0005;
+          // Pulsing galaxy effect
+          const galaxyPositions = galaxySystem.geometry.attributes.position.array;
+          for (let i = 0; i < galaxyPositions.length; i += 3) {
+            const radius = Math.sqrt(galaxyPositions[i] * galaxyPositions[i] + galaxyPositions[i + 2] * galaxyPositions[i + 2]);
+            galaxyPositions[i + 1] = Math.sin(time * 2 + radius * 0.1) * 0.5;
+          }
+          galaxySystem.geometry.attributes.position.needsUpdate = true;
+        }
+        
+        if (quantumField && quantumField.visible) {
+          quantumField.material.uniforms.time.value = time;
+          quantumField.material.uniforms.mousePos.value.set(mouseX * 0.5 + 0.5, mouseY * 0.5 + 0.5);
+        }
+        
+        if (holographicDisplay && holographicDisplay.visible) {
+          holographicDisplay.rotation.y += 0.01;
+          holographicDisplay.children.forEach((child, index) => {
+            if (child.material && child.material.uniforms) {
+              child.material.uniforms.time.value = time;
+              child.position.y = Math.sin(time + index) * 0.5;
+            }
+          });
+        }
+        
+        if (neuralNetwork && neuralNetwork.group.visible) {
+          // Animate nodes
+          neuralNetwork.nodes.forEach((node, index) => {
+            const pulse = Math.sin(time * 3 + index * 0.5) * 0.5 + 0.5;
+            node.material.emissiveIntensity = pulse;
+            node.scale.setScalar(1 + pulse * 0.2);
+          });
+          
+          // Animate connections
+          neuralNetwork.connections.forEach((conn, index) => {
+            const pulse = Math.sin(time * 5 + index * 0.3) * 0.5 + 0.5;
+            conn.line.material.opacity = 0.1 + pulse * 0.4;
+          });
+          
+          neuralNetwork.group.rotation.y += 0.002;
+        }
+        
+        if (matrixRain && matrixRain.visible) {
+          matrixRain.children.forEach(drop => {
+            drop.position.y -= drop.userData.speed;
+            if (drop.position.y < -5) {
+              drop.position.y = 10;
+              drop.material.opacity = 1;
+            } else {
+              drop.material.opacity = Math.max(0, 1 - (10 - drop.position.y) / 15);
+            }
+          });
         }
 
         renderer.render(scene, camera);
@@ -1166,6 +1571,9 @@
           console.error("Terminal frame not ready");
           return;
         }
+        
+        // Trigger 3D effects based on command
+        triggerCommandEffect(cmd);
 
         // Try multiple methods to send the command
         try {
@@ -1387,6 +1795,26 @@
           // Add keyboard shortcuts info
           if (frame.contentWindow.term) {
             console.log("Terminal enhanced with custom styling");
+            
+            // Intercept terminal input for 3D effects
+            let commandBuffer = '';
+            const term = frame.contentWindow.term;
+            
+            if (term && term.onData) {
+              term.onData((data) => {
+                if (data === '\r' || data === '\n') {
+                  // Command was executed
+                  triggerCommandEffect(commandBuffer);
+                  commandBuffer = '';
+                } else if (data === '\x7f') {
+                  // Backspace
+                  commandBuffer = commandBuffer.slice(0, -1);
+                } else if (data.charCodeAt(0) >= 32) {
+                  // Regular character
+                  commandBuffer += data;
+                }
+              });
+            }
           }
         } catch (e) {
           console.log("Could not enhance terminal (cross-origin):", e.message);
