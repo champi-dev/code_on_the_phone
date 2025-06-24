@@ -263,6 +263,67 @@ static void write_char(qt_terminal_t *term, uint32_t ch) {
     term->cursor_x++;
 }
 
+/* Command buffer for easter egg detection */
+static char command_buffer[256] = {0};
+static int command_pos = 0;
+
+/* Check for easter egg commands */
+static qt_animation_type_t check_easter_egg_command(const char *cmd) {
+    /* Matrix-style animation for 'ls' command */
+    if (strstr(cmd, "ls") && strlen(cmd) < 10) {
+        return QT_ANIM_MATRIX_RAIN;
+    }
+    
+    /* Wormhole portal for 'cd' command */
+    if (strncmp(cmd, "cd ", 3) == 0 || strcmp(cmd, "cd") == 0) {
+        return QT_ANIM_WORMHOLE_PORTAL;
+    }
+    
+    /* Quantum explosion for dangerous commands */
+    if (strstr(cmd, "rm -rf") || strstr(cmd, "rm -Rf")) {
+        return QT_ANIM_QUANTUM_EXPLOSION;
+    }
+    
+    /* DNA helix for git commands */
+    if (strncmp(cmd, "git ", 4) == 0) {
+        return QT_ANIM_DNA_HELIX;
+    }
+    
+    /* Glitch effect for sudo commands */
+    if (strncmp(cmd, "sudo ", 5) == 0) {
+        return QT_ANIM_GLITCH_TEXT;
+    }
+    
+    /* Neural network for AI/ML commands */
+    if (strstr(cmd, "python") || strstr(cmd, "jupyter") || strstr(cmd, "tensorfl")) {
+        return QT_ANIM_NEURAL_NETWORK;
+    }
+    
+    /* Cosmic rays for vim/emacs */
+    if (strcmp(cmd, "vim") == 0 || strcmp(cmd, "emacs") == 0 || 
+        strncmp(cmd, "vim ", 4) == 0 || strncmp(cmd, "emacs ", 6) == 0) {
+        return QT_ANIM_COSMIC_RAYS;
+    }
+    
+    /* Particle fountain for make/build commands */
+    if (strcmp(cmd, "make") == 0 || strncmp(cmd, "make ", 5) == 0 ||
+        strstr(cmd, "npm run") || strstr(cmd, "cargo build")) {
+        return QT_ANIM_PARTICLE_FOUNTAIN;
+    }
+    
+    /* Time warp for history command */
+    if (strcmp(cmd, "history") == 0) {
+        return QT_ANIM_TIME_WARP;
+    }
+    
+    /* Quantum tunneling for ssh */
+    if (strncmp(cmd, "ssh ", 4) == 0) {
+        return QT_ANIM_QUANTUM_TUNNEL;
+    }
+    
+    return QT_ANIM_NONE;
+}
+
 /* Update terminal - read from PTY and parse */
 void qt_terminal_update(qt_terminal_t *term, float dt) {
     if (!term || term->master_fd < 0) return;
@@ -277,6 +338,20 @@ void qt_terminal_update(qt_terminal_t *term, float dt) {
         char ch = buf[i];
         
         if (ch == '\n') {
+            /* Check for easter egg command before newline */
+            if (command_pos > 0) {
+                command_buffer[command_pos] = '\0';
+                qt_animation_type_t anim = check_easter_egg_command(command_buffer);
+                if (anim != QT_ANIM_NONE) {
+                    /* Trigger animation at current cursor position */
+                    qt_trigger_animation(term->renderer, anim, 
+                                       term->cursor_x, term->cursor_y);
+                }
+                /* Reset command buffer */
+                command_pos = 0;
+                memset(command_buffer, 0, sizeof(command_buffer));
+            }
+            
             term->cursor_x = 0;
             term->cursor_y++;
             if (term->cursor_y >= term->rows) {
@@ -286,8 +361,14 @@ void qt_terminal_update(qt_terminal_t *term, float dt) {
             term->cursor_x = 0;
         } else if (ch == '\b') {
             if (term->cursor_x > 0) term->cursor_x--;
+            if (command_pos > 0) command_pos--;
         } else if (ch >= 32 && ch < 127) {
             write_char(term, ch);
+            
+            /* Add to command buffer for easter egg detection */
+            if (command_pos < sizeof(command_buffer) - 1) {
+                command_buffer[command_pos++] = ch;
+            }
         }
         /* TODO: Full ANSI escape sequence parser */
     }

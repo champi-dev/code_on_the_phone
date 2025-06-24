@@ -213,6 +213,9 @@ void* qt_platform_create_window(const char* title, int width, int height) {
         return NULL;
     }
     
+    // Link terminal to renderer for animations
+    g_ctx.terminal->renderer = g_ctx.renderer;
+    
     // Initialize quantum effects
     qt_quantum_init(g_ctx.renderer);
     

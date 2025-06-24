@@ -48,6 +48,10 @@
         
         // Create renderer
         self.renderer = qt_renderer_create((__bridge void *)self);
+        
+        // Link terminal to renderer for animations
+        self.terminal->renderer = self.renderer;
+        
         qt_quantum_init(self.renderer);
         
         // Enable vsync

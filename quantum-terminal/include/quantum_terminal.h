@@ -48,6 +48,21 @@ typedef struct {
     float x, y, z;
 } qt_vec3_t;
 
+/* Animation types for easter eggs */
+typedef enum {
+    QT_ANIM_NONE = 0,
+    QT_ANIM_MATRIX_RAIN,
+    QT_ANIM_WORMHOLE_PORTAL,
+    QT_ANIM_QUANTUM_EXPLOSION,
+    QT_ANIM_DNA_HELIX,
+    QT_ANIM_GLITCH_TEXT,
+    QT_ANIM_NEURAL_NETWORK,
+    QT_ANIM_COSMIC_RAYS,
+    QT_ANIM_PARTICLE_FOUNTAIN,
+    QT_ANIM_TIME_WARP,
+    QT_ANIM_QUANTUM_TUNNEL
+} qt_animation_type_t;
+
 /* Quantum particle */
 typedef struct {
     qt_vec3_t position;
@@ -57,6 +72,7 @@ typedef struct {
     float energy;
     float lifetime;
     float phase;
+    qt_animation_type_t animation_type;  /* For special animation behaviors */
 } qt_particle_t;
 
 /* Terminal cell */
@@ -66,6 +82,9 @@ typedef struct {
     qt_color_t bg;
     uint8_t attrs;
 } qt_cell_t;
+
+/* Forward declaration */
+typedef struct qt_renderer_t qt_renderer_t;
 
 /* Terminal state */
 typedef struct {
@@ -86,10 +105,13 @@ typedef struct {
     uint8_t *write_buffer;
     size_t read_pos, write_pos;
     size_t read_size, write_size;
+    
+    /* Renderer reference for animations */
+    qt_renderer_t *renderer;
 } qt_terminal_t;
 
 /* Renderer state */
-typedef struct {
+struct qt_renderer_t {
     /* Window */
     void *native_window;
     int width, height;
@@ -106,11 +128,16 @@ typedef struct {
     int particle_count;
     float particle_time;
     
+    /* Animation state */
+    qt_animation_type_t current_animation;
+    float animation_time;
+    float animation_x, animation_y;  /* Origin position */
+    
     /* Matrices */
     float projection[16];
     float view[16];
     float model[16];
-} qt_renderer_t;
+};
 
 /* Input event */
 typedef struct {
@@ -171,6 +198,7 @@ void qt_quantum_init(qt_renderer_t *renderer);
 void qt_quantum_spawn_burst(qt_renderer_t *renderer, float x, float y, int count);
 void qt_quantum_update(qt_renderer_t *renderer, float dt);
 void qt_quantum_render(qt_renderer_t *renderer);
+void qt_trigger_animation(qt_renderer_t *renderer, qt_animation_type_t type, int x, int y);
 
 /* Platform-specific */
 void *qt_platform_create_window(const char *title, int width, int height);
