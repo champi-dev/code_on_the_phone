@@ -1,6 +1,10 @@
 # Quantum Terminal - Cross-Platform Makefile
 
-CC = clang
+ifeq ($(shell uname -s),Linux)
+	CC = gcc
+else
+	CC = clang
+endif
 CFLAGS = -Wall -Wextra -O3 -march=native -ffast-math
 INCLUDES = -Isrc -Iinclude -Ilib
 
@@ -82,7 +86,7 @@ wasm: dirs
 	@echo "✅ WebAssembly build complete!"
 
 # Standard build for current platform
-$(BINDIR)/quantum-terminal: $(CORE_SRCS) $(PLATFORM_SRCS)
+$(BINDIR)/quantum-terminal: $(CORE_SRCS) $(PLATFORM_SRCS) src/main.c
 	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS)
 
 clean:
@@ -103,6 +107,7 @@ linux-gtk:
 	@mkdir -p build/linux
 	gcc -o build/linux/quantum-terminal-gtk \
 		src/platform/linux_gtk.c src/quantum.c src/renderer.c \
+		-I./include \
 		`pkg-config --cflags --libs gtk+-3.0 vte-2.91` \
 		-lGL -lGLU -lm -O3
 	@echo "✅ Linux GTK build complete!"

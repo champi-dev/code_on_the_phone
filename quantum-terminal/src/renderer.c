@@ -33,7 +33,10 @@ void qt_renderer_resize(qt_renderer_t *renderer, int width, int height) {
 }
 
 void qt_renderer_render(qt_renderer_t *renderer, qt_terminal_t *term, float dt) {
-    // Rendering handled by platform-specific code
+    // Platform-specific rendering handled elsewhere
+    (void)renderer;
+    (void)term;
+    (void)dt;
 }
 
 // Matrix operations

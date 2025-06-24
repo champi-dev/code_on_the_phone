@@ -1,16 +1,15 @@
 // Linux GTK Platform Implementation for Quantum Terminal
 #include <gtk/gtk.h>
-#include <gtk/gtkgl.h>
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <vte/vte.h>
 #include <sys/time.h>
-#include "../quantum_terminal.h"
+#include "quantum_terminal.h"
 
 // Global variables
 GtkWidget *window;
 GtkWidget *gl_area;
-GtkWidget *terminal;
+GtkWidget *terminal_widget;
 VteTerminal *vte;
 
 // Mouse state
@@ -20,12 +19,45 @@ int mouse_down = 0;
 // Time tracking
 struct timeval last_time;
 
-// External functions (from quantum implementation)
-extern void init_quantum_field(void);
-extern void update_particles(float dt);
-extern void render_particles(void);
-extern void handle_mouse_motion(float x, float y);
-extern void handle_mouse_click(float x, float y, int button, int pressed);
+// Terminal and renderer instances
+static qt_terminal_t *qt_terminal = NULL;
+static qt_renderer_t *renderer = NULL;
+
+// Stub implementations for missing functions
+void init_quantum_field(void) {
+    // Initialize renderer if needed
+    if (!renderer) {
+        renderer = calloc(1, sizeof(qt_renderer_t));
+        if (renderer) {
+            renderer->width = 1024;
+            renderer->height = 768;
+            qt_quantum_init(renderer);
+        }
+    }
+}
+
+void update_particles(float dt) {
+    if (renderer) {
+        qt_quantum_update(renderer, dt);
+    }
+}
+
+void render_particles(void) {
+    // Particle rendering is done directly in gl_render using OpenGL
+    // This is just a stub for the old API
+}
+
+void handle_mouse_motion(float x, float y) {
+    // Mouse motion handling
+    mouse_x = x;
+    mouse_y = y;
+}
+
+void handle_mouse_click(float x, float y, int button, int pressed) {
+    if (renderer && pressed) {
+        qt_quantum_spawn_burst(renderer, x, y, 50);
+    }
+}
 
 // Get delta time
 float get_delta_time() {
@@ -84,7 +116,20 @@ static gboolean gl_render(GtkGLArea *area, GdkGLContext *context) {
     glTranslatef(0, 0, -500);
     
     // Render 3D particles
-    render_particles();
+    if (renderer && renderer->particles) {
+        glPointSize(3.0f);
+        glBegin(GL_POINTS);
+        
+        for (int i = 0; i < renderer->particle_count; i++) {
+            qt_particle_t *p = &renderer->particles[i];
+            if (p->lifetime > 0) {
+                glColor4f(p->color.r, p->color.g, p->color.b, p->color.a * (p->lifetime / QT_PARTICLE_LIFETIME));
+                glVertex3f(p->position.x * 100, p->position.y * 100, p->position.z * 100);
+            }
+        }
+        
+        glEnd();
+    }
     
     // Draw black backdrop
     glMatrixMode(GL_PROJECTION);
@@ -170,11 +215,13 @@ static GtkWidget* create_quantum_terminal() {
     g_signal_connect(gl_area, "button-release-event", G_CALLBACK(on_button_release), NULL);
     
     // Create VTE terminal
-    terminal = vte_terminal_new();
-    vte = VTE_TERMINAL(terminal);
+    terminal_widget = vte_terminal_new();
+    vte = VTE_TERMINAL(terminal_widget);
     
     // Configure terminal
-    vte_terminal_set_font_from_string(vte, "Monospace 12");
+    PangoFontDescription *font_desc = pango_font_description_from_string("Monospace 12");
+    vte_terminal_set_font(vte, font_desc);
+    pango_font_description_free(font_desc);
     vte_terminal_set_scrollback_lines(vte, 10000);
     vte_terminal_set_mouse_autohide(vte, TRUE);
     
@@ -185,21 +232,24 @@ static GtkWidget* create_quantum_terminal() {
     vte_terminal_set_color_foreground(vte, &fg);
     
     // Spawn shell
-    vte_terminal_spawn_sync(vte,
-                           VTE_PTY_DEFAULT,
-                           NULL,      // working directory
-                           (char*[]){"/bin/bash", NULL},
-                           NULL,      // environment
-                           G_SPAWN_DEFAULT,
-                           NULL,      // child setup
-                           NULL,      // child setup data
-                           NULL,      // child pid
-                           NULL,      // cancellable
-                           NULL);     // error
+    char *argv[] = {"/bin/bash", NULL};
+    vte_terminal_spawn_async(vte,
+                            VTE_PTY_DEFAULT,
+                            NULL,      // working directory
+                            argv,
+                            NULL,      // environment
+                            G_SPAWN_DEFAULT,
+                            NULL,      // child setup
+                            NULL,      // child setup data
+                            NULL,      // child setup data destroy
+                            -1,        // timeout
+                            NULL,      // cancellable
+                            NULL,      // callback
+                            NULL);     // user data
     
     // Add widgets to overlay
     gtk_container_add(GTK_CONTAINER(overlay), gl_area);
-    gtk_overlay_add_overlay(GTK_OVERLAY(overlay), terminal);
+    gtk_overlay_add_overlay(GTK_OVERLAY(overlay), terminal_widget);
     
     return overlay;
 }
@@ -232,7 +282,7 @@ int main(int argc, char *argv[]) {
 
 // Makefile addition for Linux GTK build:
 // linux-gtk: 
-//     gcc -o quantum-terminal-gtk src/platform/linux_gtk.c \
-//         src/quantum.c src/renderer.c \
-//         `pkg-config --cflags --libs gtk+-3.0 gtkglext-3.0 vte-2.91` \
+//     gcc -o quantum-terminal-gtk src/platform/linux_gtk.c
+//         src/quantum.c src/renderer.c
+//         `pkg-config --cflags --libs gtk+-3.0 gtkglext-3.0 vte-2.91`
 //         -lGL -lGLU -lm
