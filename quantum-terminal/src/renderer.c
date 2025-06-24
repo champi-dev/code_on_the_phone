@@ -3,6 +3,9 @@
 #include <string.h>
 #include <math.h>
 
+// Forward declaration for platform-specific init
+extern void qt_gl_renderer_init(qt_renderer_t *renderer);
+
 qt_renderer_t *qt_renderer_create(void *native_window) {
     qt_renderer_t *renderer = calloc(1, sizeof(qt_renderer_t));
     if (!renderer) return NULL;
@@ -16,6 +19,11 @@ qt_renderer_t *qt_renderer_create(void *native_window) {
     qt_mat4_identity(renderer->projection);
     qt_mat4_identity(renderer->view);
     qt_mat4_identity(renderer->model);
+    
+    // Initialize platform-specific renderer
+#ifdef QT_LINUX
+    qt_gl_renderer_init(renderer);
+#endif
     
     return renderer;
 }
@@ -32,11 +40,22 @@ void qt_renderer_resize(qt_renderer_t *renderer, int width, int height) {
     renderer->height = height;
 }
 
+// Forward declaration for platform-specific render function
+extern void qt_gl_renderer_render(qt_renderer_t *renderer, qt_terminal_t *term, float dt);
+
 void qt_renderer_render(qt_renderer_t *renderer, qt_terminal_t *term, float dt) {
-    // Platform-specific rendering handled elsewhere
-    (void)renderer;
-    (void)term;
+    if (!renderer || !term) return;
+    
+    // Call platform-specific renderer
+#ifdef QT_LINUX
+    qt_gl_renderer_render(renderer, term, dt);
+#elif defined(QT_MACOS)
+    // Metal renderer would be called here
     (void)dt;
+#else
+    // Fallback
+    (void)dt;
+#endif
 }
 
 // Matrix operations

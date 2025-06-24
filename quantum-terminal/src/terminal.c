@@ -43,9 +43,9 @@ qt_terminal_t *qt_terminal_create(int cols, int rows) {
         return NULL;
     }
     
-    /* Initialize cells with default colors */
-    qt_color_t default_fg = {0.9f, 0.9f, 0.9f, 1.0f};
-    qt_color_t default_bg = {0.1f, 0.1f, 0.1f, 1.0f};
+    /* Initialize cells with default colors and welcome message */
+    qt_color_t default_fg = {0.0f, 1.0f, 0.0f, 1.0f};  // Bright green
+    qt_color_t default_bg = {0.0f, 0.0f, 0.0f, 0.0f};  // Transparent
     
     for (int i = 0; i < cols * rows; i++) {
         term->buffer[i].codepoint = ' ';
@@ -53,6 +53,28 @@ qt_terminal_t *qt_terminal_create(int cols, int rows) {
         term->buffer[i].bg = default_bg;
         term->alt_buffer[i] = term->buffer[i];
     }
+    
+    /* Add welcome message */
+    const char *welcome = "Welcome to Quantum Terminal!";
+    const char *prompt = "$ ";
+    int row = 0;
+    int col = 0;
+    
+    /* Write welcome message */
+    for (const char *p = welcome; *p && col < cols; p++, col++) {
+        term->buffer[row * cols + col].codepoint = *p;
+        term->buffer[row * cols + col].fg = (qt_color_t){0.0f, 1.0f, 1.0f, 1.0f}; // Cyan
+    }
+    
+    /* Write prompt on next line */
+    row = 1;
+    col = 0;
+    for (const char *p = prompt; *p && col < cols; p++, col++) {
+        term->buffer[row * cols + col].codepoint = *p;
+        term->buffer[row * cols + col].fg = (qt_color_t){1.0f, 1.0f, 0.0f, 1.0f}; // Yellow
+    }
+    term->cursor_x = col;
+    term->cursor_y = row;
     
     /* Allocate ring buffers */
     term->read_size = 65536;

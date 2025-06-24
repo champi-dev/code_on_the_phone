@@ -137,7 +137,7 @@ void qt_gl_renderer_init(qt_renderer_t *renderer) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_PROGRAM_POINT_SIZE);
-    glClearColor(0.02f, 0.02f, 0.05f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.15f, 1.0f);  // Lighter background
     
     // Create particle shader
     data->particle_shader = create_shader_program(particle_vertex_shader, particle_fragment_shader);
@@ -506,16 +506,22 @@ void qt_gl_renderer_render(qt_renderer_t *renderer, qt_terminal_t *term, float d
     // Update particles
     qt_quantum_update(renderer, dt);
     
-    // Clear screen
+    // Clear screen with visible color
+    glClearColor(0.05f, 0.05f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
-    // Render particles in 3D
-    glEnable(GL_DEPTH_TEST);
+    // Render particles first
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);  // Additive blending for glow
+    glDisable(GL_DEPTH_TEST);
     qt_gl_renderer_render_particles(renderer);
     
-    // Render terminal in 2D
-    glDisable(GL_DEPTH_TEST);
+    // Render terminal text
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     qt_gl_renderer_render_terminal(renderer, term);
+    
+    // Ensure we rendered something
+    glFlush();
 }
 
 // Cleanup

@@ -219,8 +219,11 @@ void* qt_platform_create_window(const char* title, int width, int height) {
     // Initialize quantum effects
     qt_quantum_init(g_ctx.renderer);
     
-    // Initial particle burst
-    qt_quantum_spawn_burst(g_ctx.renderer, width/2, height/2, 100);
+    // Initial particle burst - lots of particles for visibility
+    qt_quantum_spawn_burst(g_ctx.renderer, width/2, height/2, 500);
+    
+    // Trigger a matrix rain effect immediately for testing
+    qt_trigger_animation(g_ctx.renderer, QT_ANIM_MATRIX_RAIN, 40, 12);
     
     return window;
 }
