@@ -1468,7 +1468,7 @@
         try {
           const frame = document.getElementById(`terminal-${tabId}`);
           // Use exec terminal with command execution
-          frame.src = `/exec-terminal.html?session=${tabId}`;
+          frame.src = `/bash-terminal.html?session=${tabId}`;
           tab.sessionId = tabId;
 
           frame.onload = () => {
