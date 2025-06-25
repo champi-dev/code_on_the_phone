@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Terminal</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.1.0/css/xterm.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0d1117;
+            overflow: hidden;
+        }
+        #terminal {
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="terminal"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.1.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.8.0/lib/xterm-addon-web-links.js"></script>
+    
+    <script>
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: 14,
+            fontFamily: 'JetBrains Mono, monospace',
+            theme: {
+                foreground: '#00ff00',
+                background: '#0a0a0f',
+                cursor: '#00ff00',
+                selection: 'rgba(0, 255, 0, 0.3)',
+                black: '#000000',
+                red: '#ff0040',
+                green: '#00ff00',
+                yellow: '#ffff00',
+                blue: '#00ffff',
+                magenta: '#ff00ff',
+                cyan: '#00ffff',
+                white: '#ffffff',
+                brightBlack: '#808080',
+                brightRed: '#ff0080',
+                brightGreen: '#00ff80',
+                brightYellow: '#ffff80',
+                brightBlue: '#80ffff',
+                brightMagenta: '#ff80ff',
+                brightCyan: '#80ffff',
+                brightWhite: '#ffffff'
+            }
+        });
+
+        const fitAddon = new FitAddon.FitAddon();
+        const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+        
+        term.loadAddon(fitAddon);
+        term.loadAddon(webLinksAddon);
+        
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
+
+        // Mock terminal functionality
+        let currentLine = '';
+        let commandHistory = [];
+        let historyIndex = -1;
+        
+        const commands = {
+            help: () => {
+                term.writeln('\r\nAvailable commands:');
+                term.writeln('  help     - Show this help message');
+                term.writeln('  clear    - Clear the terminal');
+                term.writeln('  echo     - Echo text');
+                term.writeln('  date     - Show current date');
+                term.writeln('  git      - Trigger galaxy animation');
+                term.writeln('  npm      - Trigger quantum field');
+                term.writeln('  python   - Trigger neural network');
+                term.writeln('  sudo     - Trigger matrix rain');
+                term.writeln('  effects  - List all 3D effects');
+            },
+            clear: () => {
+                term.clear();
+            },
+            echo: (args) => {
+                term.writeln('\r\n' + args.join(' '));
+            },
+            date: () => {
+                term.writeln('\r\n' + new Date().toString());
+            },
+            git: () => {
+                term.writeln('\r\n✨ Activating galaxy animation...');
+                window.parent.postMessage({ type: 'command', command: 'git' }, '*');
+            },
+            npm: () => {
+                term.writeln('\r\n⚛️ Activating quantum field...');
+                window.parent.postMessage({ type: 'command', command: 'npm' }, '*');
+            },
+            python: () => {
+                term.writeln('\r\n🧠 Activating neural network...');
+                window.parent.postMessage({ type: 'command', command: 'python' }, '*');
+            },
+            sudo: () => {
+                term.writeln('\r\n💻 Activating matrix rain...');
+                window.parent.postMessage({ type: 'command', command: 'sudo' }, '*');
+            },
+            effects: () => {
+                term.writeln('\r\n3D Effects:');
+                term.writeln('  git/github  → Galaxy system');
+                term.writeln('  npm/node    → Quantum field');
+                term.writeln('  ssh/connect → Holographic display');
+                term.writeln('  python/ai   → Neural network');
+                term.writeln('  sudo/hack   → Matrix rain');
+                term.writeln('  clear       → Reset all effects');
+            }
+        };
+        
+        function prompt() {
+            term.write('\r\n\x1b[32m$\x1b[0m ');
+        }
+        
+        term.writeln('Welcome to Terminal 3D! Type "help" for commands.');
+        prompt();
+        
+        term.onData(data => {
+            switch (data) {
+                case '\r': // Enter
+                    const parts = currentLine.trim().split(' ');
+                    const cmd = parts[0];
+                    const args = parts.slice(1);
+                    
+                    if (cmd && commands[cmd]) {
+                        commands[cmd](args);
+                    } else if (cmd) {
+                        term.writeln(`\r\n-bash: ${cmd}: command not found`);
+                    }
+                    
+                    if (cmd) {
+                        commandHistory.push(currentLine);
+                        historyIndex = commandHistory.length;
+                    }
+                    
+                    // Send command to parent for 3D effects
+                    if (currentLine.trim()) {
+                        window.parent.postMessage({ type: 'command', command: currentLine }, '*');
+                    }
+                    
+                    currentLine = '';
+                    prompt();
+                    break;
+                    
+                case '\u007F': // Backspace
+                    if (currentLine.length > 0) {
+                        currentLine = currentLine.slice(0, -1);
+                        term.write('\b \b');
+                    }
+                    break;
+                    
+                case '\u001b[A': // Up arrow
+                    if (historyIndex > 0) {
+                        // Clear current line
+                        term.write('\r\x1b[K');
+                        term.write('\x1b[32m$\x1b[0m ');
+                        
+                        historyIndex--;
+                        currentLine = commandHistory[historyIndex];
+                        term.write(currentLine);
+                    }
+                    break;
+                    
+                case '\u001b[B': // Down arrow
+                    if (historyIndex < commandHistory.length - 1) {
+                        // Clear current line
+                        term.write('\r\x1b[K');
+                        term.write('\x1b[32m$\x1b[0m ');
+                        
+                        historyIndex++;
+                        currentLine = commandHistory[historyIndex];
+                        term.write(currentLine);
+                    } else if (historyIndex === commandHistory.length - 1) {
+                        // Clear to empty
+                        term.write('\r\x1b[K');
+                        term.write('\x1b[32m$\x1b[0m ');
+                        historyIndex = commandHistory.length;
+                        currentLine = '';
+                    }
+                    break;
+                    
+                case '\u0003': // Ctrl+C
+                    term.write('^C');
+                    currentLine = '';
+                    prompt();
+                    break;
+                    
+                default:
+                    if (data >= ' ' && data <= '~') {
+                        currentLine += data;
+                        term.write(data);
+                    }
+            }
+        });
+        
+        // Handle resize
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+        });
+    </script>
+</body>
+</html>

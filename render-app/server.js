@@ -236,8 +236,108 @@ app.get('/api/terminal-config', requireAuth, (req, res) => {
   });
 });
 
+// WebSocket endpoint for real command execution
+const { spawn } = require('child_process');
+let WebSocket;
+try {
+  WebSocket = require('ws');
+} catch (err) {
+  console.error('WebSocket module not found:', err);
+}
+
+// Create WebSocket server for terminal
+const wss = WebSocket ? new WebSocket.Server({ noServer: true }) : null;
+
+// Handle WebSocket connections
+if (wss) {
+  wss.on('connection', (ws, req) => {
+  console.log('New terminal WebSocket connection');
+  
+  // Spawn a shell process
+  const shell = spawn('bash', [], {
+    env: { ...process.env, TERM: 'xterm-256color' },
+    shell: true
+  });
+  
+  // Send shell output to client
+  shell.stdout.on('data', (data) => {
+    ws.send(JSON.stringify({ type: 'output', data: data.toString() }));
+  });
+  
+  shell.stderr.on('data', (data) => {
+    ws.send(JSON.stringify({ type: 'output', data: data.toString() }));
+  });
+  
+  shell.on('exit', (code) => {
+    ws.send(JSON.stringify({ type: 'exit', code }));
+    ws.close();
+  });
+  
+  // Handle client messages
+  ws.on('message', (message) => {
+    try {
+      const msg = JSON.parse(message);
+      if (msg.type === 'input') {
+        shell.stdin.write(msg.data);
+      } else if (msg.type === 'resize') {
+        // Handle terminal resize if needed
+      }
+    } catch (err) {
+      console.error('WebSocket message error:', err);
+    }
+  });
+  
+  ws.on('close', () => {
+    console.log('Terminal WebSocket closed');
+    shell.kill();
+  });
+  
+  // Send initial prompt
+  ws.send(JSON.stringify({ type: 'connected' }));
+  });
+}
+
 app.get('/', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Simple command execution endpoint
+app.post('/api/exec', requireAuth, express.json(), async (req, res) => {
+  const { command } = req.body;
+  
+  if (!command) {
+    return res.status(400).json({ error: 'Command required' });
+  }
+  
+  // Sanitize dangerous commands
+  const dangerousCommands = ['rm -rf', 'dd', 'mkfs', 'format', ':(){ :|:& };:'];
+  const isDangerous = dangerousCommands.some(dangerous => 
+    command.toLowerCase().includes(dangerous.toLowerCase())
+  );
+  
+  if (isDangerous) {
+    return res.status(403).json({ error: 'Command not allowed for safety reasons' });
+  }
+  
+  const { exec } = require('child_process');
+  
+  exec(command, { 
+    timeout: 5000,
+    maxBuffer: 1024 * 1024 // 1MB
+  }, (error, stdout, stderr) => {
+    if (error) {
+      return res.json({ 
+        error: error.message,
+        output: stdout || '',
+        stderr: stderr || ''
+      });
+    }
+    
+    res.json({ 
+      output: stdout,
+      stderr: stderr
+    });
+  });
 });
 
 // Terminal health check
@@ -581,6 +681,25 @@ server.on('upgrade', (request, socket, head) => {
     if (sessionId) {
       console.log('WebSocket has session cookie, allowing upgrade');
       terminalProxy.upgrade(request, socket, head);
+    } else {
+      console.log('WebSocket missing auth, rejecting');
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+    }
+  } else if (request.url === '/ws/terminal') {
+    // Handle local terminal WebSocket
+    const cookies = request.headers.cookie || '';
+    const sessionId = cookies.split(';').find(c => c.trim().startsWith('sessionId='));
+    
+    if (sessionId && wss) {
+      console.log('Local terminal WebSocket authenticated');
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
+    } else if (!wss) {
+      console.log('WebSocket server not initialized');
+      socket.write('HTTP/1.1 503 Service Unavailable\r\n\r\n');
+      socket.destroy();
     } else {
       console.log('WebSocket missing auth, rejecting');
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');

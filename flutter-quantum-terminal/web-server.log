@@ -56,3 +56,7 @@
 127.0.0.1 - - [24/Jun/2025 17:41:18] code 404, message File not found
 127.0.0.1 - - [24/Jun/2025 17:41:18] "GET /api/intelligence HTTP/1.1" 404 -
 192.168.80.30 - - [24/Jun/2025 17:47:27] "GET /quantum-field-simulator.html HTTP/1.1" 200 -
+127.0.0.1 - - [24/Jun/2025 18:35:30] code 501, message Unsupported method ('POST')
+127.0.0.1 - - [24/Jun/2025 18:35:30] "POST /api/chat HTTP/1.1" 501 -
+127.0.0.1 - - [24/Jun/2025 18:35:37] code 501, message Unsupported method ('POST')
+127.0.0.1 - - [24/Jun/2025 18:35:37] "POST /api/chat HTTP/1.1" 501 -

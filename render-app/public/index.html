@@ -595,6 +595,13 @@
       function initThree() {
         console.log("initThree called, creating scene...");
         try {
+          // Detect platform and adjust performance
+          const isLinux = navigator.platform.toLowerCase().indexOf('linux') !== -1;
+          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          const isLowEnd = isLinux || isMobile || navigator.hardwareConcurrency <= 4;
+          
+          console.log(`Platform: ${navigator.platform}, Low-end mode: ${isLowEnd}`);
+          
           scene = new THREE.Scene();
           scene.fog = new THREE.Fog(0x0d1117, 1, 15);
 
@@ -607,14 +614,14 @@
 
           renderer = new THREE.WebGLRenderer({ 
             alpha: true, 
-            antialias: true,
-            powerPreference: "high-performance",
+            antialias: !isLowEnd, // Disable antialiasing on low-end
+            powerPreference: isLowEnd ? "low-power" : "high-performance",
             stencil: false,
             depth: true
           });
           renderer.setSize(window.innerWidth, window.innerHeight);
-          renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-          renderer.toneMapping = THREE.ACESFilmicToneMapping;
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio, isLowEnd ? 1 : 2));
+          renderer.toneMapping = isLowEnd ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
           renderer.toneMappingExposure = 1.2;
           renderer.shadowMap.enabled = false; // Disable shadows for performance
           renderer.sortObjects = false; // Disable automatic sorting for performance
@@ -624,7 +631,7 @@
 
           // Create multiple particle systems with different behaviors
           // System 1: Floating particles
-          const particleCount1 = 1500; // Reduced for better performance
+          const particleCount1 = isLowEnd ? 500 : 1500; // Reduced for low-end systems
           const geometry1 = new THREE.BufferGeometry();
           const positions1 = new Float32Array(particleCount1 * 3);
           const colors1 = new Float32Array(particleCount1 * 3);
@@ -670,7 +677,7 @@
           particleSystems.push(particles1);
 
           // System 2: Energy field
-          const particleCount2 = 300; // Reduced for better performance
+          const particleCount2 = isLowEnd ? 100 : 300; // Reduced for low-end systems
           const geometry2 = new THREE.BufferGeometry();
           const positions2 = new Float32Array(particleCount2 * 3);
 
@@ -818,8 +825,12 @@
       
       // Award-winning 3D animation systems
       function createGalaxySystem() {
+        const isLinux = navigator.platform.toLowerCase().indexOf('linux') !== -1;
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isLowEnd = isLinux || isMobile || navigator.hardwareConcurrency <= 4;
+        
         const galaxyGeometry = new THREE.BufferGeometry();
-        const galaxyCount = 50000;
+        const galaxyCount = isLowEnd ? 10000 : 50000; // Significantly reduced for low-end
         const positions = new Float32Array(galaxyCount * 3);
         const colors = new Float32Array(galaxyCount * 3);
         const sizes = new Float32Array(galaxyCount);
@@ -1151,7 +1162,10 @@
 
       // Optimized animation variables
       let animationId;
-      const targetFPS = 60;
+      const isLinux = navigator.platform.toLowerCase().indexOf('linux') !== -1;
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isLowEnd = isLinux || isMobile || navigator.hardwareConcurrency <= 4;
+      const targetFPS = isLowEnd ? 30 : 60; // Lower FPS for low-end systems
       const frameDuration = 1000 / targetFPS;
       let lastFrameTime = 0;
       let deltaTime = 0;
@@ -1452,42 +1466,9 @@
         if (!tab) return;
 
         try {
-          const response = await fetch("/api/terminal-config", {
-            credentials: "same-origin",
-          });
-
-          if (!response.ok) {
-            if (response.status === 401) {
-              window.location.href = "/login";
-              return;
-            }
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-
-          const config = await response.json();
-
-          // Check terminal health first if needed
-          if (config.checkHealth) {
-            try {
-              const healthResponse = await fetch("/api/terminal-health", {
-                credentials: "same-origin",
-              });
-              const health = await healthResponse.json();
-
-              if (!health.available) {
-                console.log("Terminal server is offline, loading fallback UI");
-                const frame = document.getElementById(`terminal-${tabId}`);
-                frame.src = "/terminal-proxy?fallback=true";
-                return;
-              }
-            } catch (err) {
-              console.log("Health check failed, assuming terminal is offline");
-            }
-          }
-
           const frame = document.getElementById(`terminal-${tabId}`);
-          // Add unique session identifier to URL
-          frame.src = `${config.url}?session=${tabId}`;
+          // Use exec terminal with command execution
+          frame.src = `/exec-terminal.html?session=${tabId}`;
           tab.sessionId = tabId;
 
           frame.onload = () => {
@@ -1497,10 +1478,17 @@
               if (persistenceManager) {
                 persistenceManager.registerTab(tabId, frame);
               }
-            }, 1000);
+              
+              // Listen for commands from terminal iframe
+              window.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'command') {
+                  triggerCommandEffect(event.data.command);
+                }
+              });
+            }, 100);
           };
         } catch (error) {
-          console.error("Failed to load terminal config:", error);
+          console.error("Failed to load terminal:", error);
         }
       }
 
@@ -1517,50 +1505,6 @@
         // Create first tab
         const firstTabId = createTab("Terminal 1");
         switchToTab(firstTabId);
-        try {
-          const response = await fetch("/api/terminal-config", {
-            credentials: "same-origin",
-          });
-
-          if (!response.ok) {
-            if (response.status === 401) {
-              // Redirect to login if unauthorized
-              window.location.href = "/login";
-              return;
-            }
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-
-          const config = await response.json();
-
-          // Check terminal health first if needed
-          if (config.checkHealth) {
-            try {
-              const healthResponse = await fetch("/api/terminal-health", {
-                credentials: "same-origin",
-              });
-              const health = await healthResponse.json();
-
-              if (!health.available) {
-                console.log("Terminal server is offline, loading fallback UI");
-                // Load the fallback directly without causing 504
-                const frame = document.getElementById("terminal-frame");
-                frame.src = "/terminal-proxy?fallback=true";
-
-                setTimeout(() => {
-                  document.getElementById("loadingScreen").style.display =
-                    "none";
-                }, 500);
-                return;
-              }
-            } catch (err) {
-              console.log("Health check failed, assuming terminal is offline");
-            }
-          }
-        } catch (error) {
-          console.error("Failed to initialize terminal:", error);
-          document.getElementById("loadingScreen").style.display = "none";
-        }
       }
 
       function sendCmd(cmd) {

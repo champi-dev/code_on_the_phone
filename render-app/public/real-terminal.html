@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real Terminal - Execute Commands</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.1.0/css/xterm.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0d1117;
+            overflow: hidden;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        #terminal {
+            width: 100vw;
+            height: 100vh;
+        }
+        .connection-status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+            z-index: 1000;
+        }
+        .connected {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+            border: 1px solid #00ff00;
+        }
+        .disconnected {
+            background: rgba(255, 0, 0, 0.2);
+            color: #ff0000;
+            border: 1px solid #ff0000;
+        }
+    </style>
+</head>
+<body>
+    <div id="connection-status" class="connection-status disconnected">Disconnected</div>
+    <div id="terminal"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.1.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.8.0/lib/xterm-addon-web-links.js"></script>
+    <script src="/terminal-client.js"></script>
+    
+    <script>
+        // Initialize terminal
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: 14,
+            fontFamily: 'JetBrains Mono, Consolas, "Courier New", monospace',
+            theme: {
+                foreground: '#00ff00',
+                background: '#0a0a0f',
+                cursor: '#00ff00',
+                cursorAccent: '#0a0a0f',
+                selection: 'rgba(0, 255, 0, 0.3)',
+                black: '#000000',
+                red: '#ff0040',
+                green: '#00ff00',
+                yellow: '#ffff00',
+                blue: '#00ffff',
+                magenta: '#ff00ff',
+                cyan: '#00ffff',
+                white: '#ffffff',
+                brightBlack: '#808080',
+                brightRed: '#ff0080',
+                brightGreen: '#00ff80',
+                brightYellow: '#ffff80',
+                brightBlue: '#80ffff',
+                brightMagenta: '#ff80ff',
+                brightCyan: '#80ffff',
+                brightWhite: '#ffffff'
+            },
+            allowTransparency: true,
+            scrollback: 10000
+        });
+
+        // Load addons
+        const fitAddon = new FitAddon.FitAddon();
+        const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+        
+        term.loadAddon(fitAddon);
+        term.loadAddon(webLinksAddon);
+        
+        // Open terminal
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
+
+        // Create terminal client
+        const client = new TerminalClient(term);
+        
+        // Update connection status
+        client.ws = null;
+        const originalConnect = client.connect.bind(client);
+        client.connect = function() {
+            const statusEl = document.getElementById('connection-status');
+            
+            // Override WebSocket handlers to update status
+            const result = originalConnect();
+            
+            if (this.ws) {
+                const originalOnOpen = this.ws.onopen;
+                this.ws.onopen = (event) => {
+                    statusEl.textContent = 'Connected';
+                    statusEl.className = 'connection-status connected';
+                    if (originalOnOpen) originalOnOpen(event);
+                };
+                
+                const originalOnClose = this.ws.onclose;
+                this.ws.onclose = (event) => {
+                    statusEl.textContent = 'Disconnected';
+                    statusEl.className = 'connection-status disconnected';
+                    if (originalOnClose) originalOnClose(event);
+                };
+            }
+            
+            return result;
+        };
+        
+        // Connect to server
+        client.connect();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+            client.resize(term.cols, term.rows);
+        });
+        
+        // Add some helpful initial text
+        term.writeln('\x1b[32mTerminal 3D - Real Command Execution\x1b[0m');
+        term.writeln('Connecting to server...\r\n');
+        
+        // Expose client for debugging
+        window.terminalClient = client;
+        window.term = term;
+    </script>
+</body>
+</html>
