@@ -251,49 +251,227 @@ const wss = WebSocket ? new WebSocket.Server({ noServer: true }) : null;
 // Handle WebSocket connections
 if (wss) {
   wss.on('connection', (ws, req) => {
-  console.log('New terminal WebSocket connection');
-  
-  // Spawn a shell process
-  const shell = spawn('bash', [], {
-    env: { ...process.env, TERM: 'xterm-256color' },
-    shell: true
-  });
-  
-  // Send shell output to client
-  shell.stdout.on('data', (data) => {
-    ws.send(JSON.stringify({ type: 'output', data: data.toString() }));
-  });
-  
-  shell.stderr.on('data', (data) => {
-    ws.send(JSON.stringify({ type: 'output', data: data.toString() }));
-  });
-  
-  shell.on('exit', (code) => {
-    ws.send(JSON.stringify({ type: 'exit', code }));
-    ws.close();
-  });
-  
-  // Handle client messages
-  ws.on('message', (message) => {
-    try {
-      const msg = JSON.parse(message);
-      if (msg.type === 'input') {
-        shell.stdin.write(msg.data);
-      } else if (msg.type === 'resize') {
-        // Handle terminal resize if needed
+    console.log('New terminal WebSocket connection');
+    
+    let shell = null;
+    let shellReady = false;
+    let pingInterval = null;
+    let lastActivity = Date.now();
+    
+    // Function to safely send messages
+    const safeSend = (data) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        try {
+          ws.send(typeof data === 'string' ? data : JSON.stringify(data));
+          return true;
+        } catch (err) {
+          console.error('Failed to send WebSocket message:', err);
+          return false;
+        }
       }
-    } catch (err) {
-      console.error('WebSocket message error:', err);
-    }
-  });
-  
-  ws.on('close', () => {
-    console.log('Terminal WebSocket closed');
-    shell.kill();
-  });
-  
-  // Send initial prompt
-  ws.send(JSON.stringify({ type: 'connected' }));
+      return false;
+    };
+    
+    // Function to spawn shell with error handling
+    const spawnShell = () => {
+      try {
+        shell = spawn('bash', ['--login'], {
+          env: { 
+            ...process.env, 
+            TERM: 'xterm-256color',
+            HOME: process.env.HOME || '/tmp',
+            USER: process.env.USER || 'user'
+          },
+          cwd: process.env.HOME || '/tmp',
+          shell: false
+        });
+        
+        shellReady = true;
+        
+        // Stream shell output to client with chunking for large outputs
+        const streamOutput = (stream, label) => {
+          const CHUNK_SIZE = 4096; // 4KB chunks
+          let buffer = Buffer.alloc(0);
+          
+          stream.on('data', (data) => {
+            lastActivity = Date.now();
+            buffer = Buffer.concat([buffer, data]);
+            
+            // Send complete chunks
+            while (buffer.length >= CHUNK_SIZE) {
+              const chunk = buffer.slice(0, CHUNK_SIZE);
+              safeSend({ 
+                type: 'output', 
+                data: chunk.toString('utf8'),
+                stream: label,
+                chunked: true 
+              });
+              buffer = buffer.slice(CHUNK_SIZE);
+            }
+            
+            // For smaller outputs, send immediately
+            if (buffer.length > 0 && buffer.length < 1024) {
+              safeSend({ 
+                type: 'output', 
+                data: buffer.toString('utf8'),
+                stream: label,
+                chunked: false 
+              });
+              buffer = Buffer.alloc(0);
+            }
+          });
+          
+          // Flush remaining buffer on stream end
+          stream.on('end', () => {
+            if (buffer.length > 0) {
+              safeSend({ 
+                type: 'output', 
+                data: buffer.toString('utf8'),
+                stream: label,
+                chunked: false,
+                final: true 
+              });
+              buffer = Buffer.alloc(0);
+            }
+          });
+        };
+        
+        streamOutput(shell.stdout, 'stdout');
+        streamOutput(shell.stderr, 'stderr');
+        
+        shell.on('error', (err) => {
+          console.error('Shell error:', err);
+          safeSend({ type: 'error', message: `Shell error: ${err.message}` });
+          shellReady = false;
+        });
+        
+        shell.on('exit', (code, signal) => {
+          console.log(`Shell exited with code ${code}, signal ${signal}`);
+          safeSend({ type: 'exit', code: code || 0, signal });
+          shellReady = false;
+          
+          // Auto-restart shell if it crashes
+          if (ws.readyState === WebSocket.OPEN) {
+            setTimeout(() => {
+              if (ws.readyState === WebSocket.OPEN && !shellReady) {
+                safeSend({ type: 'output', data: '\r\n\x1b[33mRestarting shell...\x1b[0m\r\n' });
+                spawnShell();
+              }
+            }, 1000);
+          }
+        });
+        
+        // Send ready signal
+        safeSend({ type: 'connected', shellPid: shell.pid });
+        
+      } catch (err) {
+        console.error('Failed to spawn shell:', err);
+        safeSend({ type: 'error', message: `Failed to spawn shell: ${err.message}` });
+      }
+    };
+    
+    // Start shell
+    spawnShell();
+    
+    // Set up ping/pong for connection health
+    pingInterval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        // Check for idle timeout (30 minutes)
+        if (Date.now() - lastActivity > 30 * 60 * 1000) {
+          console.log('WebSocket idle timeout');
+          ws.close(1000, 'Idle timeout');
+          return;
+        }
+        
+        // Send ping
+        ws.ping((err) => {
+          if (err) {
+            console.error('Ping error:', err);
+            clearInterval(pingInterval);
+          }
+        });
+      } else {
+        clearInterval(pingInterval);
+      }
+    }, 30000); // Ping every 30 seconds
+    
+    // Handle pong responses
+    ws.on('pong', () => {
+      lastActivity = Date.now();
+    });
+    
+    // Handle client messages
+    ws.on('message', (message) => {
+      lastActivity = Date.now();
+      
+      try {
+        const msg = JSON.parse(message);
+        
+        switch (msg.type) {
+          case 'input':
+            if (shellReady && shell && shell.stdin.writable) {
+              shell.stdin.write(msg.data);
+            } else {
+              safeSend({ type: 'error', message: 'Shell not ready' });
+            }
+            break;
+            
+          case 'resize':
+            if (shell && !shell.killed) {
+              try {
+                // For pty processes, we need to send window size change
+                process.kill(shell.pid, 'SIGWINCH');
+                // If using node-pty, this would be shell.resize(msg.cols, msg.rows)
+                // For standard spawn, we need to use ioctl which isn't available
+                // Log for debugging
+                console.log(`Terminal resize requested: ${msg.cols}x${msg.rows}`);
+              } catch (err) {
+                console.error('Failed to resize terminal:', err);
+              }
+            }
+            break;
+            
+          case 'ping':
+            safeSend({ type: 'pong', timestamp: Date.now() });
+            break;
+            
+          default:
+            console.warn('Unknown message type:', msg.type);
+        }
+      } catch (err) {
+        console.error('WebSocket message error:', err);
+        safeSend({ type: 'error', message: 'Invalid message format' });
+      }
+    });
+    
+    // Handle errors
+    ws.on('error', (err) => {
+      console.error('WebSocket error:', err);
+    });
+    
+    // Handle close
+    ws.on('close', (code, reason) => {
+      console.log(`Terminal WebSocket closed: ${code} - ${reason}`);
+      
+      // Clean up
+      if (pingInterval) {
+        clearInterval(pingInterval);
+      }
+      
+      if (shell) {
+        try {
+          shell.kill('SIGTERM');
+          // Force kill after 5 seconds if still running
+          setTimeout(() => {
+            if (shell && !shell.killed) {
+              shell.kill('SIGKILL');
+            }
+          }, 5000);
+        } catch (err) {
+          console.error('Error killing shell:', err);
+        }
+      }
+    });
   });
 }
 

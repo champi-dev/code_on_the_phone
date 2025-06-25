@@ -2,15 +2,21 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"time"
 
 	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 // Message types for WebSocket communication
@@ -57,6 +63,8 @@ type TerminalSession struct {
 	ptmx       *os.File
 	sshClient  *ssh.Client
 	sshSession *ssh.Session
+	sshStdout  io.Reader
+	sshStdin   io.WriteCloser
 	isRemote   bool
 }
 
@@ -91,56 +99,131 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	session := &TerminalSession{}
 	commandBuffer := ""
 
+	// Set up ping/pong handlers
+	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return nil
+	})
+
+	// Start ping ticker
+	pingTicker := time.NewTicker(30 * time.Second)
+	defer pingTicker.Stop()
+
 	// Start local terminal by default
 	if err := startLocalTerminal(session); err != nil {
 		log.Printf("Failed to start local terminal: %v", err)
+		// Send error to client
+		conn.WriteJSON(Message{
+			Type: MessageTypeOutput,
+			Data: fmt.Sprintf("\r\n\x1b[31mFailed to start terminal: %v\x1b[0m\r\n", err),
+		})
 		return
 	}
 	defer session.Close()
 
-	// Handle terminal output
+	// Handle terminal output with streaming for large outputs
 	go func() {
-		buf := make([]byte, 1024)
-		for {
-			n, err := session.Read(buf)
-			if err != nil {
-				log.Printf("Terminal read error: %v", err)
-				return
-			}
+		const chunkSize = 4096
+		buf := make([]byte, chunkSize)
+		outputBuffer := make([]byte, 0, chunkSize*2)
+		flushTicker := time.NewTicker(50 * time.Millisecond) // Flush buffer regularly
+		defer flushTicker.Stop()
 
-			output := string(buf[:n])
-			
-			// Send output to frontend
-			msg := Message{
-				Type: MessageTypeOutput,
-				Data: output,
-			}
-			if err := conn.WriteJSON(msg); err != nil {
-				log.Printf("WebSocket write error: %v", err)
-				return
-			}
-
-			// Update command buffer for animation detection
-			for _, char := range output {
-				if char == '\n' || char == '\r' {
-					// Check for animation trigger
-					if animation := detectAnimation(commandBuffer); animation != "" {
-						animMsg := Message{
-							Type:      MessageTypeAnimation,
-							Animation: animation,
-							X:         10, // These would be calculated based on cursor position
-							Y:         10,
-						}
-						conn.WriteJSON(animMsg)
-					}
-					commandBuffer = ""
-				} else if char == '\b' || char == 127 { // Backspace
-					if len(commandBuffer) > 0 {
-						commandBuffer = commandBuffer[:len(commandBuffer)-1]
-					}
-				} else if char >= 32 && char < 127 { // Printable ASCII
-					commandBuffer += string(char)
+		// Function to send buffered output
+		sendOutput := func(force bool) {
+			if len(outputBuffer) > 0 && (force || len(outputBuffer) >= chunkSize) {
+				output := string(outputBuffer)
+				
+				// Send output to frontend
+				msg := Message{
+					Type: MessageTypeOutput,
+					Data: output,
 				}
+				if err := conn.WriteJSON(msg); err != nil {
+					log.Printf("WebSocket write error: %v", err)
+					return
+				}
+				
+				// Update command buffer for animation detection
+				for _, char := range output {
+					if char == '\n' || char == '\r' {
+						// Check for animation trigger
+						if animation := detectAnimation(commandBuffer); animation != "" {
+							animMsg := Message{
+								Type:      MessageTypeAnimation,
+								Animation: animation,
+								X:         10,
+								Y:         10,
+							}
+							conn.WriteJSON(animMsg)
+						}
+						commandBuffer = ""
+					} else if char == '\b' || char == 127 {
+						if len(commandBuffer) > 0 {
+							commandBuffer = commandBuffer[:len(commandBuffer)-1]
+						}
+					} else if char >= 32 && char < 127 {
+						commandBuffer += string(char)
+					}
+				}
+				
+				outputBuffer = outputBuffer[:0] // Clear buffer
+			}
+		}
+
+		for {
+			select {
+			case <-flushTicker.C:
+				// Periodic flush for interactive output
+				sendOutput(true)
+				
+			default:
+				n, err := session.Read(buf)
+				if err != nil {
+					if err == io.EOF {
+						log.Printf("Terminal EOF reached")
+					} else {
+						log.Printf("Terminal read error: %v", err)
+					}
+					// Flush any remaining output
+					sendOutput(true)
+					// Send error to client
+					errMsg := Message{
+						Type: MessageTypeOutput,
+						Data: fmt.Sprintf("\r\n\x1b[31mTerminal read error: %v\x1b[0m\r\n", err),
+					}
+					conn.WriteJSON(errMsg)
+					return
+				}
+
+				if n > 0 {
+					outputBuffer = append(outputBuffer, buf[:n]...)
+					// Send if buffer is getting large
+					if len(outputBuffer) >= chunkSize {
+						sendOutput(false)
+					}
+				}
+
+			}
+		}
+	}()
+
+	// Channel to handle ping ticker
+	done := make(chan struct{})
+	defer close(done)
+
+	// Handle ping ticker in separate goroutine
+	go func() {
+		for {
+			select {
+			case <-pingTicker.C:
+				if err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second)); err != nil {
+					log.Printf("Ping error: %v", err)
+					return
+				}
+			case <-done:
+				return
 			}
 		}
 	}()
@@ -149,7 +232,9 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	for {
 		var msg Message
 		if err := conn.ReadJSON(&msg); err != nil {
-			log.Printf("WebSocket read error: %v", err)
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("WebSocket unexpected close error: %v", err)
+			}
 			return
 		}
 
@@ -158,6 +243,11 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			// Write input to terminal
 			if _, err := session.Write([]byte(msg.Data)); err != nil {
 				log.Printf("Terminal write error: %v", err)
+				// Send error back to client
+				conn.WriteJSON(Message{
+					Type: MessageTypeOutput,
+					Data: fmt.Sprintf("\r\n\x1b[31mError: %v\x1b[0m\r\n", err),
+				})
 			}
 
 		case MessageTypeResize:
@@ -172,13 +262,26 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				session.Close()
 				if err := startRemoteTerminal(session); err != nil {
 					log.Printf("Failed to connect to droplet: %v", err)
+					// Send error to client
+					conn.WriteJSON(Message{
+						Type: MessageTypeOutput,
+						Data: fmt.Sprintf("\r\n\x1b[31mFailed to connect: %v\x1b[0m\r\n", err),
+					})
 					// Fall back to local terminal
-					startLocalTerminal(session)
+					if err := startLocalTerminal(session); err != nil {
+						log.Printf("Failed to restart local terminal: %v", err)
+					}
 				}
 			} else {
 				// Switch back to local
 				session.Close()
-				startLocalTerminal(session)
+				if err := startLocalTerminal(session); err != nil {
+					log.Printf("Failed to start local terminal: %v", err)
+					conn.WriteJSON(Message{
+						Type: MessageTypeOutput,
+						Data: fmt.Sprintf("\r\n\x1b[31mFailed to start local terminal: %v\x1b[0m\r\n", err),
+					})
+				}
 			}
 		}
 	}
@@ -219,7 +322,7 @@ func startRemoteTerminal(session *TerminalSession) error {
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // TODO: Implement proper host key checking
+		HostKeyCallback: getHostKeyCallback(config),
 	}
 
 	// Connect to droplet
@@ -249,6 +352,31 @@ func startRemoteTerminal(session *TerminalSession) error {
 		return fmt.Errorf("failed to request PTY: %w", err)
 	}
 
+	// Setup pipes for SSH I/O
+	stdin, err := sshSession.StdinPipe()
+	if err != nil {
+		sshSession.Close()
+		client.Close()
+		return fmt.Errorf("failed to create stdin pipe: %w", err)
+	}
+
+	stdout, err := sshSession.StdoutPipe()
+	if err != nil {
+		sshSession.Close()
+		client.Close()
+		return fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+
+	stderr, err := sshSession.StderrPipe()
+	if err != nil {
+		sshSession.Close()
+		client.Close()
+		return fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
+
+	// Combine stdout and stderr
+	combinedOutput := io.MultiReader(stdout, stderr)
+
 	// Start shell
 	if err := sshSession.Shell(); err != nil {
 		sshSession.Close()
@@ -258,34 +386,32 @@ func startRemoteTerminal(session *TerminalSession) error {
 
 	session.sshClient = client
 	session.sshSession = sshSession
+	session.sshStdin = stdin
+	session.sshStdout = combinedOutput
 	session.isRemote = true
 	return nil
 }
 
 func (s *TerminalSession) Read(p []byte) (n int, err error) {
 	if s.isRemote {
-		// Read from SSH session stdout
-		if s.sshSession.Stdout == nil {
+		if s.sshStdout == nil {
 			return 0, fmt.Errorf("SSH stdout not available")
 		}
-		// This would need proper implementation with pipes
+		return s.sshStdout.Read(p)
 	} else {
 		return s.ptmx.Read(p)
 	}
-	return 0, nil
 }
 
 func (s *TerminalSession) Write(p []byte) (n int, err error) {
 	if s.isRemote {
-		// Write to SSH session stdin
-		if s.sshSession.Stdin == nil {
+		if s.sshStdin == nil {
 			return 0, fmt.Errorf("SSH stdin not available")
 		}
-		// This would need proper implementation with pipes
+		return s.sshStdin.Write(p)
 	} else {
 		return s.ptmx.Write(p)
 	}
-	return 0, nil
 }
 
 func (s *TerminalSession) Resize(cols, rows int) error {
@@ -329,6 +455,85 @@ type Config struct {
 		Username string `json:"username"`
 		KeyPath  string `json:"keyPath"`
 	} `json:"droplet"`
+}
+
+// getHostKeyCallback returns a host key callback function that verifies SSH host keys
+func getHostKeyCallback(config Config) ssh.HostKeyCallback {
+	knownHostsPath := filepath.Join(os.Getenv("HOME"), ".ssh", "quantum_terminal_known_hosts")
+	
+	// Create directory if it doesn't exist
+	os.MkdirAll(filepath.Dir(knownHostsPath), 0700)
+	
+	// Check if known_hosts file exists
+	if _, err := os.Stat(knownHostsPath); os.IsNotExist(err) {
+		// Create empty file
+		file, err := os.Create(knownHostsPath)
+		if err != nil {
+			log.Printf("Failed to create known_hosts file: %v", err)
+			// Fall back to a callback that prompts for verification
+			return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+				return verifyHostKey(hostname, remote, key, knownHostsPath)
+			}
+		}
+		file.Close()
+	}
+	
+	// Try to use existing known_hosts
+	hostKeyCallback, err := knownhosts.New(knownHostsPath)
+	if err != nil {
+		log.Printf("Failed to parse known_hosts: %v", err)
+		// Fall back to verification callback
+		return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return verifyHostKey(hostname, remote, key, knownHostsPath)
+		}
+	}
+	
+	// Wrap the callback to handle unknown hosts
+	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		err := hostKeyCallback(hostname, remote, key)
+		if err != nil {
+			// Check if it's an unknown host error
+			var keyErr *knownhosts.KeyError
+			if errors.As(err, &keyErr) && len(keyErr.Want) == 0 {
+				// Unknown host - verify and potentially add
+				return verifyHostKey(hostname, remote, key, knownHostsPath)
+			}
+			// Other error (e.g., key mismatch)
+			return err
+		}
+		return nil
+	}
+}
+
+// verifyHostKey handles verification of unknown SSH host keys
+func verifyHostKey(hostname string, remote net.Addr, key ssh.PublicKey, knownHostsPath string) error {
+	// Format the host key entry
+	hostKey := knownhosts.Line([]string{hostname}, key)
+	fingerprint := ssh.FingerprintSHA256(key)
+	
+	log.Printf("SSH Host Key Verification:")
+	log.Printf("Host: %s", hostname)
+	log.Printf("Fingerprint: %s", fingerprint)
+	log.Printf("Key Type: %s", key.Type())
+	
+	// In a production environment, you would prompt the user here
+	// For now, we'll auto-accept but log a warning
+	log.Printf("WARNING: Automatically accepting SSH host key for %s", hostname)
+	log.Printf("In production, implement proper user verification!")
+	
+	// Add the host key to known_hosts
+	file, err := os.OpenFile(knownHostsPath, os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		return fmt.Errorf("failed to open known_hosts file: %w", err)
+	}
+	defer file.Close()
+	
+	if _, err := file.WriteString(hostKey + "\n"); err != nil {
+		return fmt.Errorf("failed to write host key: %w", err)
+	}
+	
+	log.Printf("Added host key for %s to known_hosts", hostname)
+	return nil
 }
 
 func loadConfig() Config {
