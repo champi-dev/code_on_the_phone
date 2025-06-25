@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: terminal-3d
+    runtime: node
+    rootDir: render-app
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TERMINAL_HOST
+        value: 142.93.249.123
+      - key: TERMINAL_PORT
+        value: 7681
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: PASSWORD_HASH
+        value: $2a$10$xK1.BKDWYUQvtVl.W3Mjz.8rZKgX6IH5EYXL3jN8ifYJnL3GpXWlm
+      - key: CHECK_TERMINAL_HEALTH
+        value: false
+      - key: ENABLE_REBOOT_ON_LOGOUT
+        value: false
+    healthCheckPath: /login
+    autoDeploy: true
+    plan: free
