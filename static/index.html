@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Terminal</title>
+    <style>
+        #quantum-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 1;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Fira Code', 'Monaco', monospace;
+            background: #000000;
+            color: #ffffff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        #terminal {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin: 10px;
+            font-size: 14px;
+            line-height: 1.4;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+        }
+        
+        #input-container {
+            display: flex;
+            padding: 0 10px 10px;
+        }
+        
+        #input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.9);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            backdrop-filter: blur(3px);
+        }
+        
+        #input:focus {
+            border-color: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+        }
+        
+        .output-line {
+            margin-bottom: 2px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .error {
+            color: #ff0000;
+        }
+        
+        .info {
+            color: #00ffff;
+        }
+        
+        .prompt {
+            color: #ffff00;
+        }
+        
+        /* ANSI Color Classes */
+        .ansi-black { color: #000000; }
+        .ansi-red { color: #ff0000; }
+        .ansi-green { color: #00ff00; }
+        .ansi-yellow { color: #ffff00; }
+        .ansi-blue { color: #0000ff; }
+        .ansi-magenta { color: #ff00ff; }
+        .ansi-cyan { color: #00ffff; }
+        .ansi-white { color: #ffffff; }
+        
+        .ansi-bright-black { color: #808080; }
+        .ansi-bright-red { color: #ff8080; }
+        .ansi-bright-green { color: #80ff80; }
+        .ansi-bright-yellow { color: #ffff80; }
+        .ansi-bright-blue { color: #8080ff; }
+        .ansi-bright-magenta { color: #ff80ff; }
+        .ansi-bright-cyan { color: #80ffff; }
+        .ansi-bright-white { color: #ffffff; }
+        
+        .ansi-bg-black { background-color: #000000; }
+        .ansi-bg-red { background-color: #ff0000; }
+        .ansi-bg-green { background-color: #00ff00; }
+        .ansi-bg-yellow { background-color: #ffff00; }
+        .ansi-bg-blue { background-color: #0000ff; }
+        .ansi-bg-magenta { background-color: #ff00ff; }
+        .ansi-bg-cyan { background-color: #00ffff; }
+        .ansi-bg-white { background-color: #ffffff; }
+        
+        .ansi-bold { font-weight: bold; }
+        .ansi-italic { font-style: italic; }
+        .ansi-underline { text-decoration: underline; }
+        
+        #status {
+            background: #111;
+            padding: 5px 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .connected {
+            color: #50fa7b;
+        }
+        
+        .disconnected {
+            color: #ff0000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="quantum-canvas"></canvas>
+    <div id="terminal"></div>
+    <div id="input-container">
+        <input type="text" id="input" placeholder="Enter command..." autocomplete="off" autofocus>
+    </div>
+    <div id="status">
+        <span id="connection-status" class="disconnected">Disconnected</span>
+        <span id="session-id"></span>
+    </div>
+    
+    <script>
+        // Redirect mobile users to optimized version
+        if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            window.location.href = '/mobile.html';
+        }
+        const terminal = document.getElementById('terminal');
+        const input = document.getElementById('input');
+        const connectionStatus = document.getElementById('connection-status');
+        const sessionId = document.getElementById('session-id');
+        
+        let ws = null;
+        let commandHistory = [];
+        let historyIndex = -1;
+        
+        // ANSI escape code parser
+        function parseAnsi(text) {
+            const ansiRegex = /\x1b\[(\d+(?:;\d+)*)?m/g;
+            let result = [];
+            let lastIndex = 0;
+            let currentStyle = {};
+            
+            let match;
+            while ((match = ansiRegex.exec(text)) !== null) {
+                // Add text before the escape code
+                if (match.index > lastIndex) {
+                    result.push({
+                        text: text.substring(lastIndex, match.index),
+                        style: {...currentStyle}
+                    });
+                }
+                
+                // Parse the escape code
+                const codes = match[1] ? match[1].split(';').map(Number) : [0];
+                for (const code of codes) {
+                    if (code === 0) {
+                        currentStyle = {};
+                    } else if (code === 1) {
+                        currentStyle.bold = true;
+                    } else if (code === 3) {
+                        currentStyle.italic = true;
+                    } else if (code === 4) {
+                        currentStyle.underline = true;
+                    } else if (code >= 30 && code <= 37) {
+                        currentStyle.color = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'][code - 30];
+                    } else if (code >= 40 && code <= 47) {
+                        currentStyle.bg = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'][code - 40];
+                    } else if (code >= 90 && code <= 97) {
+                        currentStyle.color = 'bright-' + ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'][code - 90];
+                    }
+                }
+                
+                lastIndex = ansiRegex.lastIndex;
+            }
+            
+            // Add remaining text
+            if (lastIndex < text.length) {
+                result.push({
+                    text: text.substring(lastIndex),
+                    style: {...currentStyle}
+                });
+            }
+            
+            return result;
+        }
+        
+        function addLine(text, className = '') {
+            const line = document.createElement('div');
+            line.className = 'output-line ' + className;
+            
+            // Parse ANSI codes
+            const parsed = parseAnsi(text);
+            if (parsed.length === 1 && Object.keys(parsed[0].style).length === 0) {
+                // No ANSI codes, just set text
+                line.textContent = text;
+            } else {
+                // Has ANSI codes, create spans
+                parsed.forEach(segment => {
+                    if (segment.text) {
+                        const span = document.createElement('span');
+                        span.textContent = segment.text;
+                        
+                        // Apply styles
+                        const classes = [];
+                        if (segment.style.color) classes.push('ansi-' + segment.style.color);
+                        if (segment.style.bg) classes.push('ansi-bg-' + segment.style.bg);
+                        if (segment.style.bold) classes.push('ansi-bold');
+                        if (segment.style.italic) classes.push('ansi-italic');
+                        if (segment.style.underline) classes.push('ansi-underline');
+                        
+                        if (classes.length > 0) {
+                            span.className = classes.join(' ');
+                        }
+                        
+                        line.appendChild(span);
+                    }
+                });
+            }
+            
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+        
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                connectionStatus.textContent = 'Connected';
+                connectionStatus.className = 'connected';
+                addLine('Connected to Quantum Terminal', 'info');
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'session') {
+                    sessionId.textContent = `Session: ${data.id}`;
+                } else if (data.type === 'output') {
+                    addLine(data.content);
+                } else if (data.type === 'error') {
+                    addLine(data.content, 'error');
+                }
+            };
+            
+            ws.onclose = () => {
+                connectionStatus.textContent = 'Disconnected';
+                connectionStatus.className = 'disconnected';
+                addLine('Disconnected from server', 'error');
+                
+                // Reconnect after 3 seconds
+                setTimeout(connect, 3000);
+            };
+            
+            ws.onerror = (error) => {
+                addLine('WebSocket error: ' + error, 'error');
+            };
+        }
+        
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const command = input.value.trim();
+                if (command) {
+                    addLine('$ ' + command, 'prompt');
+                    
+                    // Handle client-side commands
+                    if (command === 'clear') {
+                        terminal.innerHTML = '';
+                        addLine('Terminal cleared', 'info');
+                    } else if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: 'command',
+                            content: command
+                        }));
+                    } else {
+                        addLine('Not connected to server', 'error');
+                    }
+                    
+                    commandHistory.push(command);
+                    historyIndex = commandHistory.length;
+                    input.value = '';
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    input.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    input.value = commandHistory[historyIndex];
+                } else if (historyIndex === commandHistory.length - 1) {
+                    historyIndex = commandHistory.length;
+                    input.value = '';
+                }
+            }
+        });
+        
+        // Start connection
+        connect();
+        
+        // Initial message
+        addLine('Quantum Terminal - Elite Performance Web Interface', 'info');
+        addLine('Connecting to server...', 'info');
+        
+        // Load enhanced quantum animation
+        const script = document.createElement('script');
+        script.src = 'quantum-enhanced.js';
+        document.body.appendChild(script);
+    </script>
+</body>
+</html>

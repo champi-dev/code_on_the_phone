@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
+    <title>Quantum Terminal</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        #quantum-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.8;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #ffffff;
+            height: 100vh;
+            height: 100dvh; /* Dynamic viewport height for mobile */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            touch-action: none;
+        }
+        
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+        }
+        
+        #terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #terminal {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: rgba(0, 0, 0, 0.85);
+            font-size: 14px;
+            line-height: 1.4;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+            word-wrap: break-word;
+            word-break: break-all;
+        }
+        
+        /* Quick commands bar */
+        #quick-commands {
+            display: flex;
+            overflow-x: auto;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 5px;
+            gap: 5px;
+            border-top: 1px solid #00ff00;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        
+        /* Extra keys row (Termux-style) */
+        #extra-keys {
+            display: flex;
+            background: rgba(0, 0, 0, 0.95);
+            padding: 5px;
+            gap: 5px;
+            border-top: 1px solid #00ff00;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        
+        #extra-keys::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .extra-key {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #ffffff;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-family: monospace;
+            border-radius: 5px;
+            flex-shrink: 0;
+            min-width: 40px;
+            text-align: center;
+            transition: all 0.1s;
+        }
+        
+        .extra-key:active {
+            background: rgba(0, 255, 0, 0.3);
+            transform: scale(0.95);
+        }
+        
+        .extra-key.modifier {
+            background: rgba(0, 255, 255, 0.1);
+            border-color: #00ffff;
+            color: #00ffff;
+        }
+        
+        .extra-key.modifier.active {
+            background: rgba(0, 255, 255, 0.3);
+        }
+        
+        #quick-commands::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .quick-cmd {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #ffffff;
+            padding: 8px 15px;
+            border-radius: 20px;
+            white-space: nowrap;
+            font-size: 12px;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+        
+        .quick-cmd:active {
+            background: rgba(0, 255, 0, 0.3);
+            transform: scale(0.95);
+        }
+        
+        /* Input area */
+        #input-area {
+            display: flex;
+            background: rgba(0, 0, 0, 0.95);
+            border-top: 1px solid #00ff00;
+            padding: 10px;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        #input-wrapper {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        
+        #input {
+            width: 100%;
+            background: rgba(0, 255, 0, 0.05);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 12px;
+            font-family: inherit;
+            font-size: 16px; /* Prevents zoom on iOS */
+            outline: none;
+            border-radius: 25px;
+            -webkit-appearance: none;
+        }
+        
+        #input:focus {
+            background: rgba(0, 255, 0, 0.1);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        
+        .btn {
+            background: rgba(0, 255, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #ffffff;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        
+        .btn:active {
+            background: rgba(0, 255, 0, 0.4);
+            transform: scale(0.9);
+        }
+        
+        /* Virtual keyboard area */
+        #keyboard-spacer {
+            height: 0;
+            transition: height 0.3s;
+        }
+        
+        /* Output styling */
+        .output-line {
+            margin-bottom: 2px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            animation: glow 0.3s ease-in;
+        }
+        
+        @keyframes glow {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .error { color: #ff0000; }
+        .info { color: #00ffff; }
+        .prompt { color: #ffff00; }
+        
+        /* Status bar */
+        #status-bar {
+            background: rgba(0, 0, 0, 0.95);
+            padding: 5px 10px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            border-bottom: 1px solid #00ff00;
+        }
+        
+        .connected { color: #00ff00; }
+        .disconnected { color: #ff0000; }
+        
+        /* Swipe indicator */
+        #swipe-indicator {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 4px;
+            background: #00ff00;
+            border-radius: 2px;
+            opacity: 0.3;
+        }
+        
+        /* Landscape optimizations */
+        @media (orientation: landscape) {
+            #terminal {
+                font-size: 12px;
+            }
+            
+            #quick-commands {
+                padding: 3px;
+            }
+            
+            .quick-cmd {
+                padding: 5px 12px;
+                font-size: 11px;
+            }
+            
+            #input-area {
+                padding: 5px;
+            }
+            
+            #input {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+            
+            .btn {
+                width: 35px;
+                height: 35px;
+                font-size: 16px;
+            }
+        }
+        
+        /* Touch feedback */
+        .touch-feedback {
+            position: fixed;
+            width: 50px;
+            height: 50px;
+            border: 2px solid #00ff00;
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0);
+            animation: touch-ripple 0.6s ease-out;
+        }
+        
+        @keyframes touch-ripple {
+            to {
+                transform: translate(-50%, -50%) scale(2);
+                opacity: 0;
+            }
+        }
+        
+        /* ANSI Colors */
+        .ansi-black { color: #000000; }
+        .ansi-red { color: #ff0000; }
+        .ansi-green { color: #00ff00; }
+        .ansi-yellow { color: #ffff00; }
+        .ansi-blue { color: #0000ff; }
+        .ansi-magenta { color: #ff00ff; }
+        .ansi-cyan { color: #00ffff; }
+        .ansi-white { color: #ffffff; }
+        .ansi-bold { font-weight: bold; }
+        .ansi-italic { font-style: italic; }
+        .ansi-underline { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <canvas id="quantum-canvas"></canvas>
+    
+    <div id="app">
+        <div id="status-bar">
+            <span id="connection-status" class="disconnected">Connecting...</span>
+            <span id="session-info"></span>
+        </div>
+        
+        <div id="terminal-container">
+            <div id="terminal"></div>
+            <div id="swipe-indicator"></div>
+        </div>
+        
+        <div id="extra-keys">
+            <button class="extra-key" data-key="Escape">ESC</button>
+            <button class="extra-key modifier" data-key="Control">CTRL</button>
+            <button class="extra-key modifier" data-key="Alt">ALT</button>
+            <button class="extra-key" data-key="Tab">TAB</button>
+            <button class="extra-key" data-key="ArrowUp">↑</button>
+            <button class="extra-key" data-key="ArrowDown">↓</button>
+            <button class="extra-key" data-key="ArrowLeft">←</button>
+            <button class="extra-key" data-key="ArrowRight">→</button>
+            <button class="extra-key" data-key="Home">HOME</button>
+            <button class="extra-key" data-key="End">END</button>
+            <button class="extra-key" data-key="|">|</button>
+            <button class="extra-key" data-key="/">/</button>
+            <button class="extra-key" data-key="-">-</button>
+            <button class="extra-key" data-key="=">=</button>
+            <button class="extra-key" data-key="&">&</button>
+        </div>
+        
+        <div id="quick-commands">
+            <button class="quick-cmd" data-cmd="ls">ls</button>
+            <button class="quick-cmd" data-cmd="pwd">pwd</button>
+            <button class="quick-cmd" data-cmd="cd ..">cd ..</button>
+            <button class="quick-cmd" data-cmd="clear">clear</button>
+            <button class="quick-cmd" data-cmd="history">history</button>
+            <button class="quick-cmd" data-cmd="date">date</button>
+            <button class="quick-cmd" data-cmd="ps">ps</button>
+            <button class="quick-cmd" data-cmd="df -h">df -h</button>
+            <button class="quick-cmd" data-cmd="free -h">free</button>
+            <button class="quick-cmd" data-cmd="whoami">whoami</button>
+        </div>
+        
+        <div id="input-area">
+            <button class="btn" id="menu-btn">☰</button>
+            <div id="input-wrapper">
+                <input type="text" id="input" placeholder="Enter command..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            </div>
+            <button class="btn" id="send-btn">➤</button>
+        </div>
+        
+        <div id="keyboard-spacer"></div>
+    </div>
+    
+    <script src="quantum-enhanced.js"></script>
+    <script>
+        // Mobile optimizations
+        const terminal = document.getElementById('terminal');
+        const input = document.getElementById('input');
+        const connectionStatus = document.getElementById('connection-status');
+        const sessionInfo = document.getElementById('session-info');
+        const keyboardSpacer = document.getElementById('keyboard-spacer');
+        const quickCommands = document.getElementById('quick-commands');
+        const sendBtn = document.getElementById('send-btn');
+        const menuBtn = document.getElementById('menu-btn');
+        const extraKeys = document.getElementById('extra-keys');
+        
+        let ws = null;
+        let commandHistory = [];
+        let historyIndex = -1;
+        let touchStartY = 0;
+        let terminalScrollTop = 0;
+        let ctrlPressed = false;
+        let altPressed = false;
+        
+        // Prevent zoom on double tap
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        });
+        
+        // Handle keyboard show/hide
+        let viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', () => {
+                const currentHeight = window.visualViewport.height;
+                const keyboardHeight = viewportHeight - currentHeight;
+                keyboardSpacer.style.height = Math.max(0, keyboardHeight - 50) + 'px';
+                
+                // Scroll to bottom when keyboard opens
+                if (keyboardHeight > 100) {
+                    setTimeout(() => {
+                        terminal.scrollTop = terminal.scrollHeight;
+                    }, 100);
+                }
+            });
+        }
+        
+        // Touch feedback
+        document.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            const ripple = document.createElement('div');
+            ripple.className = 'touch-feedback';
+            ripple.style.left = touch.clientX + 'px';
+            ripple.style.top = touch.clientY + 'px';
+            document.body.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 600);
+        });
+        
+        // Swipe gestures
+        terminal.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+            terminalScrollTop = terminal.scrollTop;
+        });
+        
+        terminal.addEventListener('touchmove', (e) => {
+            const touchY = e.touches[0].clientY;
+            const deltaY = touchStartY - touchY;
+            terminal.scrollTop = terminalScrollTop + deltaY;
+        });
+        
+        // Quick commands
+        quickCommands.addEventListener('click', (e) => {
+            if (e.target.classList.contains('quick-cmd')) {
+                const cmd = e.target.dataset.cmd;
+                input.value = cmd;
+                input.focus();
+                sendCommand();
+            }
+        });
+        
+        // Extra keys handler (Termux-style)
+        extraKeys.addEventListener('click', (e) => {
+            if (e.target.classList.contains('extra-key')) {
+                const key = e.target.dataset.key;
+                
+                if (key === 'Control') {
+                    ctrlPressed = !ctrlPressed;
+                    e.target.classList.toggle('active', ctrlPressed);
+                } else if (key === 'Alt') {
+                    altPressed = !altPressed;
+                    e.target.classList.toggle('active', altPressed);
+                } else {
+                    // Handle key press
+                    handleExtraKey(key);
+                    
+                    // Reset modifiers after use
+                    if (ctrlPressed || altPressed) {
+                        ctrlPressed = false;
+                        altPressed = false;
+                        document.querySelectorAll('.modifier').forEach(m => m.classList.remove('active'));
+                    }
+                }
+            }
+        });
+        
+        function handleExtraKey(key) {
+            const cursorPos = input.selectionStart;
+            
+            if (key === 'Tab') {
+                // Insert tab or trigger autocomplete
+                insertAtCursor('  ');
+            } else if (key === 'Escape') {
+                if (ctrlPressed) {
+                    // Ctrl+Esc = clear line
+                    input.value = '';
+                } else {
+                    // Cancel current input
+                    input.value = '';
+                    historyIndex = commandHistory.length;
+                }
+            } else if (key === 'ArrowUp' || key === 'ArrowDown') {
+                // Navigate history
+                if (key === 'ArrowUp' && historyIndex > 0) {
+                    historyIndex--;
+                    input.value = commandHistory[historyIndex];
+                } else if (key === 'ArrowDown' && historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    input.value = commandHistory[historyIndex];
+                }
+            } else if (key === 'ArrowLeft' || key === 'ArrowRight') {
+                // Move cursor
+                if (key === 'ArrowLeft' && cursorPos > 0) {
+                    input.setSelectionRange(cursorPos - 1, cursorPos - 1);
+                } else if (key === 'ArrowRight' && cursorPos < input.value.length) {
+                    input.setSelectionRange(cursorPos + 1, cursorPos + 1);
+                }
+            } else if (key === 'Home') {
+                input.setSelectionRange(0, 0);
+            } else if (key === 'End') {
+                input.setSelectionRange(input.value.length, input.value.length);
+            } else {
+                // Insert special characters
+                insertAtCursor(key);
+            }
+            
+            input.focus();
+        }
+        
+        function insertAtCursor(text) {
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            const value = input.value;
+            
+            input.value = value.substring(0, start) + text + value.substring(end);
+            input.setSelectionRange(start + text.length, start + text.length);
+        }
+        
+        // ANSI parser (same as desktop)
+        function parseAnsi(text) {
+            const ansiRegex = /\x1b\[(\d+(?:;\d+)*)?m/g;
+            let result = [];
+            let lastIndex = 0;
+            let currentStyle = {};
+            
+            let match;
+            while ((match = ansiRegex.exec(text)) !== null) {
+                if (match.index > lastIndex) {
+                    result.push({
+                        text: text.substring(lastIndex, match.index),
+                        style: {...currentStyle}
+                    });
+                }
+                
+                const codes = match[1] ? match[1].split(';').map(Number) : [0];
+                for (const code of codes) {
+                    if (code === 0) {
+                        currentStyle = {};
+                    } else if (code === 1) {
+                        currentStyle.bold = true;
+                    } else if (code === 3) {
+                        currentStyle.italic = true;
+                    } else if (code === 4) {
+                        currentStyle.underline = true;
+                    } else if (code >= 30 && code <= 37) {
+                        currentStyle.color = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'][code - 30];
+                    }
+                }
+                
+                lastIndex = ansiRegex.lastIndex;
+            }
+            
+            if (lastIndex < text.length) {
+                result.push({
+                    text: text.substring(lastIndex),
+                    style: {...currentStyle}
+                });
+            }
+            
+            return result;
+        }
+        
+        function addLine(text, className = '') {
+            const line = document.createElement('div');
+            line.className = 'output-line ' + className;
+            
+            const parsed = parseAnsi(text);
+            if (parsed.length === 1 && Object.keys(parsed[0].style).length === 0) {
+                line.textContent = text;
+            } else {
+                parsed.forEach(segment => {
+                    if (segment.text) {
+                        const span = document.createElement('span');
+                        span.textContent = segment.text;
+                        
+                        const classes = [];
+                        if (segment.style.color) classes.push('ansi-' + segment.style.color);
+                        if (segment.style.bold) classes.push('ansi-bold');
+                        if (segment.style.italic) classes.push('ansi-italic');
+                        if (segment.style.underline) classes.push('ansi-underline');
+                        
+                        if (classes.length > 0) {
+                            span.className = classes.join(' ');
+                        }
+                        
+                        line.appendChild(span);
+                    }
+                });
+            }
+            
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+        
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                connectionStatus.textContent = 'Connected';
+                connectionStatus.className = 'connected';
+                addLine('Connected to Quantum Terminal', 'info');
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'session') {
+                    sessionInfo.textContent = `Session: ${data.id.substr(0, 8)}`;
+                } else if (data.type === 'output') {
+                    addLine(data.content);
+                } else if (data.type === 'error') {
+                    addLine(data.content, 'error');
+                }
+            };
+            
+            ws.onclose = () => {
+                connectionStatus.textContent = 'Disconnected';
+                connectionStatus.className = 'disconnected';
+                addLine('Disconnected from server', 'error');
+                setTimeout(connect, 3000);
+            };
+        }
+        
+        function sendCommand() {
+            const command = input.value.trim();
+            if (command) {
+                addLine('$ ' + command, 'prompt');
+                
+                if (command === 'clear') {
+                    terminal.innerHTML = '';
+                } else if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'command',
+                        content: command
+                    }));
+                } else {
+                    addLine('Not connected to server', 'error');
+                }
+                
+                commandHistory.push(command);
+                historyIndex = commandHistory.length;
+                input.value = '';
+            }
+        }
+        
+        // Input handlers
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendCommand();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    input.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    input.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    input.value = '';
+                }
+            }
+        });
+        
+        sendBtn.addEventListener('click', sendCommand);
+        
+        menuBtn.addEventListener('click', () => {
+            // Future: Show command palette or settings
+            addLine('Menu coming soon...', 'info');
+        });
+        
+        // Initialize
+        connect();
+        addLine('Quantum Terminal Mobile', 'info');
+        addLine('Swipe to scroll, tap quick commands or type below', 'info');
+        
+        // Focus management
+        terminal.addEventListener('click', () => {
+            input.focus();
+        });
+        
+        // PWA install prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+        });
+    </script>
+</body>
+</html>
