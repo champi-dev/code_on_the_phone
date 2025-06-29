@@ -1,8 +1,0 @@
-{
-  "droplet": {
-    "host": "your-droplet-ip-here",
-    "port": 22,
-    "username": "root",
-    "keyPath": "~/.ssh/id_rsa"
-  }
-}
