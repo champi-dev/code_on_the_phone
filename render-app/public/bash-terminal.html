@@ -130,8 +130,10 @@
                 
                 // Use the proxy URL from config
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}${config.url}`;
+                // For proxy connection to ttyd, we need to use the WebSocket path
+                const wsUrl = `${protocol}//${window.location.host}${config.url}/ws`;
                 
+                console.log('Connecting to WebSocket:', wsUrl);
                 ws = new WebSocket(wsUrl);
             } catch (error) {
                 console.error('Failed to connect:', error);

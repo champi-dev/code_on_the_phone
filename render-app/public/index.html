@@ -1468,7 +1468,9 @@
         try {
           const frame = document.getElementById(`terminal-${tabId}`);
           // Load ttyd directly through the proxy
-          frame.src = `/terminal-proxy?session=${tabId}`;
+          // Use ttyd-terminal for droplet connection, bash-terminal for local
+          // You can switch between them based on configuration
+          frame.src = `/ttyd-terminal.html?session=${tabId}`;
           tab.sessionId = tabId;
 
           frame.onload = () => {
