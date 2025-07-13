@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Terminal</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #0d1117;
+        }
+        #terminal-frame {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+        }
+        .status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 8px 16px;
+            background: rgba(0,0,0,0.8);
+            color: #2a9d8f;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="status" id="status">Loading terminal...</div>
+    <iframe id="terminal-frame"></iframe>
+    
+    <script>
+        async function loadTerminal() {
+            const status = document.getElementById('status');
+            const frame = document.getElementById('terminal-frame');
+            
+            try {
+                // Get terminal config
+                const configRes = await fetch('/api/terminal-config', {
+                    credentials: 'same-origin'
+                });
+                
+                if (!configRes.ok) {
+                    throw new Error('Failed to get terminal config');
+                }
+                
+                const config = await configRes.json();
+                console.log('Terminal config:', config);
+                
+                // Load terminal directly through proxy
+                frame.src = `/terminal-proxy`;
+                
+                frame.onload = () => {
+                    status.textContent = 'Terminal connected';
+                    setTimeout(() => {
+                        status.style.display = 'none';
+                    }, 3000);
+                };
+                
+                frame.onerror = () => {
+                    status.textContent = 'Terminal error';
+                    status.style.color = '#e76f51';
+                };
+                
+            } catch (error) {
+                console.error('Failed to load terminal:', error);
+                status.textContent = 'Failed to load terminal';
+                status.style.color = '#e76f51';
+            }
+        }
+        
+        // Load terminal on page load
+        loadTerminal();
+    </script>
+</body>
+</html>
