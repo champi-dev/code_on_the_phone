@@ -108,17 +108,36 @@
             statusEl.textContent = text;
         }
         
-        function connect() {
+        async function connect() {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 return;
             }
             
             updateStatus('connecting', 'Connecting...');
             
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws/terminal`;
-            
-            ws = new WebSocket(wsUrl);
+            try {
+                // First fetch terminal configuration
+                const configResponse = await fetch('/api/terminal-config', {
+                    credentials: 'same-origin'
+                });
+                
+                if (!configResponse.ok) {
+                    throw new Error('Failed to fetch terminal configuration');
+                }
+                
+                const config = await configResponse.json();
+                console.log('Terminal config:', config);
+                
+                // Use the proxy URL from config
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}${config.url}`;
+                
+                ws = new WebSocket(wsUrl);
+            } catch (error) {
+                console.error('Failed to connect:', error);
+                updateStatus('error', 'Failed to fetch terminal configuration');
+                return;
+            }
             
             ws.onopen = () => {
                 console.log('WebSocket connected');

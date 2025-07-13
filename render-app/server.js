@@ -887,7 +887,7 @@ server.on('upgrade', (request, socket, head) => {
 });
 
 // Start server
-server.listen(PORT, () => {
-  console.log(`Cloud Terminal 3D running on port ${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Cloud Terminal 3D running on http://0.0.0.0:${PORT}`);
   console.log(`Terminal backend: ${TERMINAL_HOST}:${TERMINAL_PORT}`);
 });

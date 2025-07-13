@@ -1467,8 +1467,8 @@
 
         try {
           const frame = document.getElementById(`terminal-${tabId}`);
-          // Use exec terminal with command execution
-          frame.src = `/bash-terminal.html?session=${tabId}`;
+          // Load ttyd directly through the proxy
+          frame.src = `/terminal-proxy?session=${tabId}`;
           tab.sessionId = tabId;
 
           frame.onload = () => {

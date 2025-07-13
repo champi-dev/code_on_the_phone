@@ -1,4 +1,4 @@
-const { describe, it, expect, beforeEach, afterEach, jest } = require('@jest/globals');
+const { describe, it, expect, beforeEach, afterEach } = require('@jest/globals');
 
 // Mock xterm.js
 class MockTerminal {

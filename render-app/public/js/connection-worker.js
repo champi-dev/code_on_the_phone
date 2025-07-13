@@ -11,16 +11,24 @@ self.addEventListener('message', (event) => {
   
   switch (type) {
     case 'register':
-      registerConnection(data.tabId, data.config);
+      if (data && data.tabId && data.config) {
+        registerConnection(data.tabId, data.config);
+      }
       break;
     case 'unregister':
-      unregisterConnection(data.tabId);
+      if (data && data.tabId) {
+        unregisterConnection(data.tabId);
+      }
       break;
     case 'keepalive':
-      sendKeepAlive(data.tabId);
+      if (data && data.tabId) {
+        sendKeepAlive(data.tabId);
+      }
       break;
     case 'updateInterval':
-      updateKeepAliveInterval(data.interval);
+      if (data && data.interval) {
+        updateKeepAliveInterval(data.interval);
+      }
       break;
     case 'status':
       reportStatus();
