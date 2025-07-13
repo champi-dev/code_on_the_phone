@@ -1,0 +1,13 @@
+Running 8 unit tests...
+
+running 8 tests
+test tests::test_base64_encoding ... ok
+test tests::test_websocket_url_construction ... ok
+test tests::test_auth_token_format ... ok
+test tests::test_terminal_lifecycle ... ok
+test terminal::tests::test_terminal_options ... ok
+test websocket::tests::test_websocket_url_construction ... ok
+test auth::tests::test_auth_token_generation ... ok
+test utils::tests::test_base64_encoding ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s

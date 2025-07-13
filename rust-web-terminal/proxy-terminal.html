@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proxy Terminal</title>
+    <style>
+        body { margin: 0; background: #000; }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .info {
+            background: #1a1a1a;
+            color: #0f0;
+            padding: 10px;
+            font-family: monospace;
+            text-align: center;
+        }
+        iframe {
+            flex: 1;
+            width: 100%;
+            border: none;
+        }
+        .direct-link {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="info">
+            Terminal Connection | Password: cloudterm123 | 
+            <a href="http://142.93.249.123:7681" target="_blank" class="direct-link">Open Direct</a>
+        </div>
+        <iframe 
+            src="http://142.93.249.123:7681" 
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+            allowfullscreen>
+        </iframe>
+    </div>
+</body>
+</html>

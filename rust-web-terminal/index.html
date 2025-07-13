@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rust Web Terminal</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: rgba(22, 27, 34, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #58a6ff;
+        }
+        
+        .connection-status {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .connection-status::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        
+        .connection-status.disconnected {
+            background: rgba(248, 81, 73, 0.1);
+            color: #f85149;
+            border: 1px solid rgba(248, 81, 73, 0.3);
+        }
+        
+        .connection-status.connecting {
+            background: rgba(251, 143, 68, 0.1);
+            color: #fb8f44;
+            border: 1px solid rgba(251, 143, 68, 0.3);
+        }
+        
+        .connection-status.connected {
+            background: rgba(63, 185, 80, 0.1);
+            color: #3fb950;
+            border: 1px solid rgba(63, 185, 80, 0.3);
+        }
+        
+        #terminal-container {
+            flex: 1;
+            background: #0d1117;
+            padding: 1rem;
+            overflow: hidden;
+        }
+        
+        #terminal {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .connect-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            min-width: 300px;
+        }
+        
+        .connect-dialog h2 {
+            margin-bottom: 1.5rem;
+            color: #58a6ff;
+        }
+        
+        .connect-dialog input {
+            width: 100%;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            font-size: 0.875rem;
+        }
+        
+        .connect-dialog input:focus {
+            outline: none;
+            border-color: #58a6ff;
+        }
+        
+        .connect-dialog button {
+            width: 100%;
+            padding: 0.75rem;
+            background: #238636;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .connect-dialog button:hover {
+            background: #2ea043;
+        }
+        
+        .connect-dialog button:disabled {
+            background: #30363d;
+            cursor: not-allowed;
+        }
+        
+        .error-message {
+            color: #f85149;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Rust Web Terminal</h1>
+        <div id="status" class="connection-status disconnected">Disconnected</div>
+    </div>
+    
+    <div id="terminal-container">
+        <div id="terminal"></div>
+    </div>
+    
+    <div id="connect-dialog" class="connect-dialog">
+        <h2>Connect to Droplet</h2>
+        <div id="error-message" class="error-message"></div>
+        <input type="text" id="host-input" placeholder="Host (e.g., 142.93.249.123)" value="142.93.249.123">
+        <input type="password" id="password-input" placeholder="Password" value="cloudterm123">
+        <button id="connect-button" onclick="connect()">Connect</button>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
+    <script>
+        // Redirect mobile users to mobile-optimized version
+        if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            window.location.href = '/mobile-terminal.html';
+        }
+    </script>
+    <script type="module">
+        import init, { WebTerminal } from './pkg/rust_web_terminal.js';
+        
+        let terminal = null;
+        
+        async function initializeTerminal() {
+            await init();
+            
+            // Initialize terminal but don't connect yet
+            terminal = new WebTerminal('terminal');
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                if (terminal) {
+                    // Get terminal dimensions
+                    const terminalElement = document.getElementById('terminal');
+                    const cols = Math.floor(terminalElement.offsetWidth / 9);
+                    const rows = Math.floor(terminalElement.offsetHeight / 17);
+                    terminal.resize(cols, rows);
+                }
+            });
+        }
+        
+        window.connect = async function() {
+            const host = document.getElementById('host-input').value;
+            const password = document.getElementById('password-input').value;
+            const button = document.getElementById('connect-button');
+            const status = document.getElementById('status');
+            const errorMessage = document.getElementById('error-message');
+            const dialog = document.getElementById('connect-dialog');
+            
+            if (!host || !password) {
+                errorMessage.textContent = 'Please enter host and password';
+                errorMessage.style.display = 'block';
+                return;
+            }
+            
+            button.disabled = true;
+            button.innerHTML = '<span class="loading-spinner"></span> Connecting...';
+            status.className = 'connection-status connecting';
+            status.textContent = 'Connecting...';
+            errorMessage.style.display = 'none';
+            
+            try {
+                await terminal.connect(host, password);
+                
+                // Success
+                status.className = 'connection-status connected';
+                status.textContent = 'Connected';
+                dialog.style.display = 'none';
+                
+                // Focus terminal
+                document.getElementById('terminal').querySelector('.xterm-helper-textarea')?.focus();
+            } catch (error) {
+                console.error('Connection failed:', error);
+                errorMessage.textContent = `Connection failed: ${error}`;
+                errorMessage.style.display = 'block';
+                status.className = 'connection-status disconnected';
+                status.textContent = 'Disconnected';
+                
+                button.disabled = false;
+                button.textContent = 'Connect';
+            }
+        };
+        
+        // Auto-connect if Enter is pressed in password field
+        document.getElementById('password-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                window.connect();
+            }
+        });
+        
+        // Initialize on load
+        initializeTerminal().catch(console.error);
+    </script>
+</body>
+</html>

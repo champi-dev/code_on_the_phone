@@ -1,0 +1,5 @@
+Server running at http://0.0.0.0:8080/
+Access locally at: http://localhost:8080/
+Access from network at: http://100.111.108.108:8080/
+
+Press Ctrl+C to stop the server

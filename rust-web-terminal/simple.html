@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Simple Terminal</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            overflow: hidden;
+        }
+        iframe {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+        }
+        .error {
+            color: #f00;
+            padding: 20px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div id="content"></div>
+    
+    <script>
+        // Try direct iframe connection to ttyd
+        const content = document.getElementById('content');
+        
+        // Option 1: Direct iframe to ttyd
+        content.innerHTML = '<iframe src="http://142.93.249.123:7681" allowfullscreen></iframe>';
+        
+        // If iframe fails, show alternatives
+        setTimeout(() => {
+            const iframe = document.querySelector('iframe');
+            iframe.onerror = () => {
+                content.innerHTML = `
+                    <div class="error">
+                        <h2>Connection Methods:</h2>
+                        <p>1. Direct link: <a href="http://142.93.249.123:7681" target="_blank">http://142.93.249.123:7681</a></p>
+                        <p>2. Use password: cloudterm123</p>
+                        <p>3. If blocked, try using a VPN or proxy</p>
+                    </div>
+                `;
+            };
+        }, 1000);
+    </script>
+</body>
+</html>

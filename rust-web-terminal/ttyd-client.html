@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Terminal Client</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            color: #fff;
+            font-family: monospace;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        iframe {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+        }
+        
+        .auth-form {
+            background: #1a1a1a;
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        .auth-form h2 {
+            margin-bottom: 20px;
+            color: #0dbc79;
+        }
+        
+        .auth-form input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            background: #2d2d2d;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .auth-form button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            background: #0dbc79;
+            border: none;
+            color: #000;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .auth-form button:hover {
+            background: #23d18b;
+        }
+        
+        .error {
+            color: #f14c4c;
+            margin-top: 10px;
+        }
+        
+        #terminal-frame {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="auth-container" class="auth-form">
+        <h2>Terminal Login</h2>
+        <p>Connect to: 142.93.249.123</p>
+        <input type="password" id="password" placeholder="Password" value="cloudterm123">
+        <button onclick="authenticate()">Connect</button>
+        <div id="error" class="error"></div>
+    </div>
+    
+    <iframe id="terminal-frame" style="display: none;"></iframe>
+    
+    <script>
+        // Direct connection approach
+        function connectDirect() {
+            const frame = document.getElementById('terminal-frame');
+            const authContainer = document.getElementById('auth-container');
+            
+            // Hide auth form
+            authContainer.style.display = 'none';
+            
+            // Show and load terminal in iframe
+            frame.style.display = 'block';
+            frame.src = 'http://142.93.249.123:7681';
+            
+            // Handle authentication in iframe if needed
+            frame.onload = () => {
+                try {
+                    // Try to access iframe content (will fail due to CORS)
+                    const iframeDoc = frame.contentDocument || frame.contentWindow.document;
+                    
+                    // If we can access it, auto-fill password
+                    const passwordInput = iframeDoc.querySelector('input[type="password"]');
+                    if (passwordInput) {
+                        passwordInput.value = document.getElementById('password').value;
+                        const submitButton = iframeDoc.querySelector('input[type="submit"]');
+                        if (submitButton) {
+                            submitButton.click();
+                        }
+                    }
+                } catch (e) {
+                    // CORS will prevent this, but that's ok
+                    console.log('Terminal loaded in iframe');
+                }
+            };
+        }
+        
+        // Authentication with fetch first
+        async function authenticate() {
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('error');
+            
+            if (!password) {
+                errorDiv.textContent = 'Please enter password';
+                return;
+            }
+            
+            errorDiv.textContent = 'Connecting...';
+            
+            try {
+                // Try to authenticate first
+                const authResponse = await fetch('http://142.93.249.123:7681/auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `password=${encodeURIComponent(password)}`,
+                    mode: 'no-cors' // Bypass CORS
+                });
+                
+                // If no error, proceed with iframe
+                connectDirect();
+                
+            } catch (error) {
+                // If auth fails, still try direct connection
+                console.log('Auth request failed, trying direct connection');
+                connectDirect();
+            }
+        }
+        
+        // Enter key submits
+        document.getElementById('password').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                authenticate();
+            }
+        });
+        
+        // Auto-connect if password is pre-filled
+        window.addEventListener('load', () => {
+            const password = document.getElementById('password').value;
+            if (password) {
+                // Give user a moment to see the UI
+                setTimeout(() => {
+                    authenticate();
+                }, 1000);
+            }
+        });
+    </script>
+</body>
+</html>

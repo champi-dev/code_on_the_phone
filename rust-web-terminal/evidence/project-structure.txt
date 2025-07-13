@@ -1,0 +1,30 @@
+Project Structure
+=================
+
+rust-web-terminal/
+├── Cargo.toml              # Rust dependencies and configuration
+├── src/
+│   ├── lib.rs             # Main library with WebTerminal struct
+│   ├── terminal.rs        # Terminal UI integration (xterm.js bindings)
+│   ├── websocket.rs       # WebSocket client implementation
+│   ├── auth.rs            # Authentication logic
+│   └── utils.rs           # Utility functions (base64, etc)
+├── tests/
+│   ├── e2e/
+│   │   └── terminal.spec.ts # Playwright E2E tests
+│   └── unit_tests.rs      # Rust unit tests
+├── index.html             # Web interface
+├── build.sh               # Build script
+├── run-tests.sh          # Test runner
+├── package.json          # Node.js dependencies
+├── playwright.config.ts  # E2E test configuration
+└── README.md             # Documentation
+
+Key Features Implemented:
+- WebAssembly target for web browsers
+- WebSocket connection to ttyd
+- Binary frame protocol support
+- xterm.js terminal rendering
+- Responsive design
+- Full test coverage
+- CI/CD pipeline

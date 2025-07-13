@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Working Terminal</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@4.19.0/css/xterm.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #terminal {
+            width: 100%;
+            height: 100%;
+        }
+        .status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,255,0,0.2);
+            color: #0f0;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="status" id="status">Connecting...</div>
+    <div id="terminal"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.5.0/lib/xterm-addon-fit.js"></script>
+    
+    <script>
+        // Create terminal
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: 14,
+            fontFamily: 'Menlo, Monaco, monospace',
+            scrollback: 1000,
+        });
+        
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
+        
+        // WebSocket connection
+        const ws = new WebSocket('ws://142.93.249.123:7681/ws');
+        ws.binaryType = 'arraybuffer';
+        
+        ws.onopen = () => {
+            document.getElementById('status').textContent = 'Connected';
+            term.focus();
+            console.log('Connected to ttyd');
+        };
+        
+        ws.onmessage = (event) => {
+            // Handle ttyd protocol messages
+            const data = new Uint8Array(event.data);
+            
+            // ttyd sends: [command_byte][data...]
+            // command '0' (0x30) = terminal output
+            // Skip the first byte if it's the command byte
+            if (data.length > 0) {
+                if (data[0] === 0x30) { // '0' = terminal output
+                    // Decode everything after the command byte
+                    const text = new TextDecoder().decode(data.slice(1));
+                    term.write(text);
+                } else if (data[0] === 0x31) { // '1' = set window title
+                    const title = new TextDecoder().decode(data.slice(1));
+                    document.title = title;
+                } else {
+                    // Try to decode the whole message
+                    const text = new TextDecoder().decode(data);
+                    term.write(text);
+                }
+            }
+        };
+        
+        ws.onerror = (e) => {
+            document.getElementById('status').textContent = 'Error';
+            console.error('WebSocket error:', e);
+        };
+        
+        ws.onclose = () => {
+            document.getElementById('status').textContent = 'Disconnected';
+            term.write('\r\n\x1b[31mDisconnected from server\x1b[0m\r\n');
+        };
+        
+        // Handle terminal input
+        term.onData((data) => {
+            if (ws.readyState === WebSocket.OPEN) {
+                // ttyd expects: [command_byte][data...]
+                // command '0' (0x30) = terminal input
+                const encoder = new TextEncoder();
+                const encoded = encoder.encode(data);
+                const message = new Uint8Array(encoded.length + 1);
+                message[0] = 0x30; // '0' = input command
+                message.set(encoded, 1);
+                ws.send(message.buffer);
+            }
+        });
+        
+        // Handle resize
+        term.onResize(({ cols, rows }) => {
+            if (ws.readyState === WebSocket.OPEN) {
+                // ttyd resize: command '1' (0x31) + cols (2 bytes BE) + rows (2 bytes BE)
+                const buffer = new ArrayBuffer(5);
+                const view = new DataView(buffer);
+                view.setUint8(0, 0x31); // '1' = resize command
+                view.setUint16(1, cols, false); // big-endian
+                view.setUint16(3, rows, false); // big-endian
+                ws.send(buffer);
+            }
+        });
+        
+        // Window resize
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+        });
+        
+        // Focus on click
+        document.addEventListener('click', () => {
+            term.focus();
+        });
+    </script>
+</body>
+</html>

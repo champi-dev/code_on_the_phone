@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Terminal</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@4.19.0/css/xterm.css" />
+    <style>
+        body {
+            margin: 0;
+            background: #000;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #terminal {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="terminal"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.5.0/lib/xterm-addon-fit.js"></script>
+    
+    <script>
+        // Terminal setup
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: 14,
+            fontFamily: 'Menlo, Monaco, monospace',
+        });
+        
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
+        
+        // Connect to ttyd
+        const socket = new WebSocket('ws://142.93.249.123:7681/ws');
+        socket.binaryType = 'arraybuffer';
+        
+        const textEncoder = new TextEncoder();
+        const textDecoder = new TextDecoder();
+        
+        socket.onopen = () => {
+            console.log('Connected');
+            term.write('\x1b[32mConnected to terminal\x1b[0m\r\n');
+            term.focus();
+        };
+        
+        socket.onmessage = (evt) => {
+            try {
+                const msg = textDecoder.decode(evt.data);
+                
+                // ttyd protocol: first char is command
+                if (msg.length > 0) {
+                    const cmd = msg[0];
+                    const data = msg.slice(1);
+                    
+                    switch (cmd) {
+                        case '0': // stdout
+                            term.write(data);
+                            break;
+                        case '1': // set window title
+                            document.title = data;
+                            break;
+                        case '2': // set preferences
+                            // Handle preferences if needed
+                            break;
+                        default:
+                            // Unknown command, just write it
+                            term.write(msg);
+                    }
+                }
+            } catch (e) {
+                console.error('Error processing message:', e);
+            }
+        };
+        
+        socket.onerror = (evt) => {
+            term.write('\x1b[31mConnection error\x1b[0m\r\n');
+        };
+        
+        socket.onclose = () => {
+            term.write('\x1b[31mDisconnected\x1b[0m\r\n');
+        };
+        
+        // Send input to server
+        term.onData((data) => {
+            if (socket.readyState === WebSocket.OPEN) {
+                // ttyd expects: '0' + data for stdin
+                socket.send(textEncoder.encode('0' + data));
+            }
+        });
+        
+        // Handle resize
+        term.onResize(({ cols, rows }) => {
+            if (socket.readyState === WebSocket.OPEN) {
+                // ttyd resize format: '1' + cols + ':' + rows
+                socket.send(textEncoder.encode(`1${cols}:${rows}`));
+            }
+        });
+        
+        // Resize handling
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+        });
+        
+        // Mobile tap to focus
+        document.addEventListener('click', () => {
+            term.focus();
+        });
+    </script>
+</body>
+</html>

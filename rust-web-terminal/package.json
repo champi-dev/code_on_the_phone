@@ -1,0 +1,15 @@
+{
+  "name": "rust-web-terminal-tests",
+  "version": "1.0.0",
+  "description": "E2E tests for Rust Web Terminal",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "playwright": "^1.40.0"
+  }
+}

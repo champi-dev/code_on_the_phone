@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Working Terminal</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            background: #0d1117;
+            color: #c9d1d9;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        #terminal {
+            flex: 1;
+            padding: 10px;
+        }
+        
+        .toolbar {
+            background: #161b22;
+            padding: 8px;
+            display: flex;
+            gap: 5px;
+            overflow-x: auto;
+            border-top: 1px solid #30363d;
+        }
+        
+        .toolbar button {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            white-space: nowrap;
+            touch-action: manipulation;
+        }
+        
+        .toolbar button:active {
+            background: #30363d;
+        }
+    </style>
+</head>
+<body>
+    <div id="terminal"></div>
+    <div class="toolbar">
+        <button onclick="sendText('ls -la\n')">ls</button>
+        <button onclick="sendText('pwd\n')">pwd</button>
+        <button onclick="sendText('cd ..\n')">cd ..</button>
+        <button onclick="sendText('clear\n')">clear</button>
+        <button onclick="sendText('\t')">Tab</button>
+        <button onclick="sendText('\x03')">Ctrl+C</button>
+        <button onclick="sendText('exit\n')">exit</button>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-attach@0.9.0/lib/xterm-addon-attach.js"></script>
+    
+    <script>
+        // Create terminal
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: 16,
+            fontFamily: 'Menlo, Monaco, monospace',
+            theme: {
+                background: '#0d1117',
+                foreground: '#c9d1d9'
+            }
+        });
+        
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
+        
+        // Connect to WebSocket
+        function connect() {
+            term.writeln('Connecting to 142.93.249.123:7681...');
+            
+            // Direct connection to ttyd
+            const ws = new WebSocket('ws://142.93.249.123:7681/ws');
+            ws.binaryType = 'arraybuffer';
+            
+            // Use attach addon for ttyd protocol
+            const attachAddon = new AttachAddon.AttachAddon(ws);
+            term.loadAddon(attachAddon);
+            
+            ws.onopen = () => {
+                term.writeln('\x1b[32mConnected!\x1b[0m');
+                term.focus();
+            };
+            
+            ws.onerror = (e) => {
+                term.writeln('\x1b[31mConnection error. Retrying...\x1b[0m');
+                setTimeout(connect, 3000);
+            };
+            
+            ws.onclose = () => {
+                term.writeln('\x1b[31mDisconnected. Reconnecting...\x1b[0m');
+                setTimeout(connect, 3000);
+            };
+            
+            return ws;
+        }
+        
+        let ws = connect();
+        
+        // Send text helper
+        function sendText(text) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                // For ttyd, wrap in binary frame
+                const encoder = new TextEncoder();
+                const data = encoder.encode(text);
+                const buffer = new Uint8Array(data.length + 1);
+                buffer[0] = 0; // Input type
+                buffer.set(data, 1);
+                ws.send(buffer);
+            }
+        }
+        
+        // Handle resize
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                // Send resize command
+                const buffer = new ArrayBuffer(5);
+                const view = new DataView(buffer);
+                view.setUint8(0, 1); // resize command
+                view.setUint16(1, term.cols, false);
+                view.setUint16(3, term.rows, false);
+                ws.send(buffer);
+            }
+        });
+        
+        // Focus on click
+        document.getElementById('terminal').addEventListener('click', () => {
+            term.focus();
+        });
+    </script>
+</body>
+</html>

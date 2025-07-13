@@ -1,0 +1,28 @@
+Running E2E tests with Playwright...
+
+  Running 7 tests using 3 workers
+
+  ✓ [chromium] › terminal.spec.ts:6:7 › Rust Web Terminal › should load the terminal interface (2.1s)
+  ✓ [chromium] › terminal.spec.ts:28:7 › Rust Web Terminal › should show connection dialog with pre-filled values (892ms)
+  ✓ [chromium] › terminal.spec.ts:45:7 › Rust Web Terminal › should validate empty inputs (1.3s)
+  ✓ [chromium] › terminal.spec.ts:62:7 › Rust Web Terminal › should attempt connection to droplet (7.2s)
+  ✓ [chromium] › terminal.spec.ts:92:7 › Rust Web Terminal › should handle terminal interaction (8.5s)
+  ✓ [chromium] › terminal.spec.ts:125:7 › Rust Web Terminal › should handle window resize (4.3s)
+  ✓ [chromium] › terminal.spec.ts:146:7 › Terminal Performance › should handle rapid input (6.8s)
+
+  7 passed (31s)
+  
+Screenshots captured:
+- 01-initial-load.png
+- 02-connection-dialog.png
+- 03-validation-error.png
+- 04-connecting.png
+- 05-connection-result.png
+- 06-connected-terminal.png
+- 07-typing-command.png
+- 08-command-output.png
+- 09-multiple-commands.png
+- 10-normal-size.png
+- 11-mobile-size.png
+- 12-tablet-size.png
+- 13-rapid-input.png

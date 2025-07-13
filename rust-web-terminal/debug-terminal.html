@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Debug Terminal</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #terminal {
+            flex: 1;
+        }
+        
+        .debug {
+            background: #2d2d2d;
+            color: #0f0;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            height: 100px;
+            overflow-y: auto;
+            border-top: 1px solid #444;
+        }
+        
+        .debug div {
+            margin: 2px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="terminal"></div>
+    <div class="debug" id="debug">
+        <div>Debug Console:</div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    
+    <script>
+        const debug = document.getElementById('debug');
+        function log(msg) {
+            const div = document.createElement('div');
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            debug.appendChild(div);
+            debug.scrollTop = debug.scrollHeight;
+        }
+        
+        // Create terminal
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: 16,
+            fontFamily: 'monospace',
+        });
+        
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
+        
+        // Connect to ttyd
+        const wsUrl = 'ws://142.93.249.123:7681/ws';
+        log(`Connecting to ${wsUrl}`);
+        
+        const socket = new WebSocket(wsUrl);
+        socket.binaryType = 'arraybuffer';
+        
+        socket.onopen = () => {
+            log('WebSocket opened');
+            term.write('Connected to terminal\r\n');
+        };
+        
+        socket.onmessage = (event) => {
+            if (event.data instanceof ArrayBuffer) {
+                const bytes = new Uint8Array(event.data);
+                log(`Received ${bytes.length} bytes, first byte: 0x${bytes[0].toString(16)}`);
+                
+                // ttyd protocol
+                if (bytes.length > 0) {
+                    const cmd = String.fromCharCode(bytes[0]);
+                    const data = bytes.slice(1);
+                    
+                    switch (cmd) {
+                        case '0': // data
+                            const text = new TextDecoder().decode(data);
+                            log(`Output: "${text.substring(0, 50)}..."`);
+                            term.write(text);
+                            break;
+                        case '1': // title
+                            const title = new TextDecoder().decode(data);
+                            log(`Title: ${title}`);
+                            document.title = title;
+                            break;
+                        case '2': // preferences
+                            log('Preferences received');
+                            break;
+                        default:
+                            log(`Unknown command: ${cmd}`);
+                    }
+                }
+            }
+        };
+        
+        socket.onerror = (e) => {
+            log(`WebSocket error: ${e.type}`);
+        };
+        
+        socket.onclose = (e) => {
+            log(`WebSocket closed: ${e.code} ${e.reason}`);
+        };
+        
+        // Handle input
+        term.onData((data) => {
+            log(`Input: "${data}" (${data.length} chars, codes: ${[...data].map(c => c.charCodeAt(0)).join(',')})`);
+            
+            if (socket.readyState === WebSocket.OPEN) {
+                // Send as ttyd input command
+                const encoder = new TextEncoder();
+                const encoded = encoder.encode(data);
+                const buffer = new Uint8Array(encoded.length + 1);
+                buffer[0] = '0'.charCodeAt(0); // input command
+                buffer.set(encoded, 1);
+                
+                log(`Sending ${buffer.length} bytes`);
+                socket.send(buffer);
+            }
+        });
+        
+        // Handle resize
+        term.onResize(({cols, rows}) => {
+            log(`Resize: ${cols}x${rows}`);
+            
+            if (socket.readyState === WebSocket.OPEN) {
+                const buffer = new ArrayBuffer(5);
+                const view = new DataView(buffer);
+                view.setUint8(0, '1'.charCodeAt(0)); // resize command
+                view.setUint16(1, cols, false);
+                view.setUint16(3, rows, false);
+                socket.send(buffer);
+            }
+        });
+        
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+        });
+        
+        // Test typing
+        document.addEventListener('click', () => {
+            term.focus();
+            log('Terminal focused');
+        });
+    </script>
+</body>
+</html>

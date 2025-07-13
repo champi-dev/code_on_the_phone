@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Terminal - Fixed</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            background: #1a1a1a;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        
+        .header {
+            background: #2d2d2d;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #444;
+        }
+        
+        .status {
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            background: #3a3a3a;
+            color: #fff;
+        }
+        
+        .status.connected {
+            background: #2ea043;
+        }
+        
+        #terminal-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #terminal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+        
+        .toolbar {
+            background: #2d2d2d;
+            padding: 8px;
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-top: 1px solid #444;
+        }
+        
+        .toolbar button {
+            background: #3a3a3a;
+            border: none;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            white-space: nowrap;
+            touch-action: manipulation;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .toolbar button:active {
+            background: #4a4a4a;
+        }
+        
+        /* Mobile input helper */
+        .mobile-input-container {
+            position: fixed;
+            left: -9999px;
+            top: 50%;
+        }
+        
+        .mobile-input {
+            font-size: 16px;
+            border: none;
+            outline: none;
+            background: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>Terminal</div>
+        <div class="status" id="status">Connecting...</div>
+    </div>
+    
+    <div id="terminal-container">
+        <div id="terminal"></div>
+    </div>
+    
+    <div class="toolbar">
+        <button onclick="typeCommand('ls -la')">ls -la</button>
+        <button onclick="typeCommand('pwd')">pwd</button>
+        <button onclick="typeCommand('cd ~')">cd ~</button>
+        <button onclick="typeCommand('clear')">clear</button>
+        <button onclick="sendSpecialKey('Tab')">Tab</button>
+        <button onclick="sendSpecialKey('Escape')">Esc</button>
+        <button onclick="sendSpecialKey('Control+C')">Ctrl+C</button>
+        <button onclick="typeCommand('exit')">exit</button>
+    </div>
+    
+    <div class="mobile-input-container">
+        <input type="text" class="mobile-input" id="mobileInput" 
+               autocomplete="off" autocorrect="off" 
+               autocapitalize="off" spellcheck="false">
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-unicode11@0.6.0/lib/xterm-addon-unicode11.js"></script>
+    
+    <script>
+        // Terminal instance
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: 14,
+            fontFamily: '"Cascadia Code", Menlo, Monaco, "Courier New", monospace',
+            theme: {
+                background: '#1a1a1a',
+                foreground: '#d4d4d4',
+                cursor: '#aeafad',
+                black: '#000000',
+                red: '#cd3131',
+                green: '#0dbc79',
+                yellow: '#e5e510',
+                blue: '#2472c8',
+                magenta: '#bc3fbc',
+                cyan: '#11a8cd',
+                white: '#e5e5e5',
+                brightBlack: '#666666',
+                brightRed: '#f14c4c',
+                brightGreen: '#23d18b',
+                brightYellow: '#f5f543',
+                brightBlue: '#3b8eea',
+                brightMagenta: '#d670d6',
+                brightCyan: '#29b8db',
+                brightWhite: '#e5e5e5'
+            },
+            allowProposedApi: true,
+            windowsMode: false
+        });
+
+        // Load addons
+        const fitAddon = new FitAddon.FitAddon();
+        const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+        const unicode11Addon = new Unicode11Addon.Unicode11Addon();
+        
+        term.loadAddon(fitAddon);
+        term.loadAddon(webLinksAddon);
+        term.loadAddon(unicode11Addon);
+        
+        // Activate unicode version 11
+        term.unicode.activeVersion = '11';
+        
+        // Open terminal
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
+        
+        // WebSocket connection
+        let socket = null;
+        let reconnectTimer = null;
+        
+        function connect() {
+            const status = document.getElementById('status');
+            status.textContent = 'Connecting...';
+            status.className = 'status';
+            
+            // Create WebSocket connection to ttyd
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//142.93.249.123:7681/ws`;
+            
+            console.log('Connecting to:', wsUrl);
+            
+            socket = new WebSocket(wsUrl);
+            socket.binaryType = 'arraybuffer';
+            
+            socket.onopen = () => {
+                console.log('Connected to ttyd');
+                status.textContent = 'Connected';
+                status.className = 'status connected';
+                term.focus();
+                
+                // Clear any previous content
+                term.clear();
+                
+                // Send initial window size
+                sendResize();
+            };
+            
+            socket.onmessage = (event) => {
+                // Handle ttyd protocol
+                if (event.data instanceof ArrayBuffer) {
+                    const data = new Uint8Array(event.data);
+                    if (data.length > 0) {
+                        const cmd = data[0];
+                        
+                        switch (cmd) {
+                            case '0'.charCodeAt(0): // Output
+                                if (data.length > 1) {
+                                    const text = new TextDecoder().decode(data.slice(1));
+                                    term.write(text);
+                                }
+                                break;
+                                
+                            case '1'.charCodeAt(0): // Set window title
+                                if (data.length > 1) {
+                                    const title = new TextDecoder().decode(data.slice(1));
+                                    document.title = title;
+                                }
+                                break;
+                                
+                            case '2'.charCodeAt(0): // Set preferences
+                                // Handle preferences if needed
+                                break;
+                                
+                            case '3'.charCodeAt(0): // Reconnect
+                                // Handle reconnect
+                                handleReconnect();
+                                break;
+                        }
+                    }
+                } else {
+                    // Fallback for text data
+                    term.write(event.data);
+                }
+            };
+            
+            socket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                status.textContent = 'Error';
+                status.className = 'status';
+            };
+            
+            socket.onclose = () => {
+                console.log('WebSocket closed');
+                status.textContent = 'Disconnected';
+                status.className = 'status';
+                socket = null;
+                
+                // Attempt to reconnect after 3 seconds
+                clearTimeout(reconnectTimer);
+                reconnectTimer = setTimeout(connect, 3000);
+            };
+        }
+        
+        // Send data to server
+        function sendData(data) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                // ttyd input protocol: cmd '0' + data
+                const encoder = new TextEncoder();
+                const encoded = encoder.encode(data);
+                const buffer = new Uint8Array(encoded.length + 1);
+                buffer[0] = '0'.charCodeAt(0);
+                buffer.set(encoded, 1);
+                socket.send(buffer);
+            }
+        }
+        
+        // Send resize event
+        function sendResize() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                // ttyd resize protocol: cmd '1' + cols (2 bytes) + rows (2 bytes)
+                const buffer = new ArrayBuffer(5);
+                const view = new DataView(buffer);
+                view.setUint8(0, '1'.charCodeAt(0));
+                view.setUint16(1, term.cols, false);
+                view.setUint16(3, term.rows, false);
+                socket.send(buffer);
+            }
+        }
+        
+        // Handle reconnect
+        function handleReconnect() {
+            if (socket) {
+                socket.close();
+            }
+            clearTimeout(reconnectTimer);
+            reconnectTimer = setTimeout(connect, 100);
+        }
+        
+        // Terminal data handler - send keystrokes to server
+        term.onData((data) => {
+            sendData(data);
+        });
+        
+        // Handle resize
+        term.onResize(() => {
+            sendResize();
+        });
+        
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+        });
+        
+        // Mobile keyboard handling
+        const mobileInput = document.getElementById('mobileInput');
+        let composing = false;
+        
+        // Focus terminal on click
+        document.getElementById('terminal').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Focus terminal
+            term.focus();
+            
+            // On mobile, also focus the hidden input
+            if ('ontouchstart' in window) {
+                mobileInput.focus();
+                mobileInput.click();
+            }
+        });
+        
+        // Handle mobile input
+        mobileInput.addEventListener('input', (e) => {
+            if (!composing && e.target.value) {
+                sendData(e.target.value);
+                e.target.value = '';
+            }
+        });
+        
+        mobileInput.addEventListener('compositionstart', () => {
+            composing = true;
+        });
+        
+        mobileInput.addEventListener('compositionend', (e) => {
+            composing = false;
+            if (e.target.value) {
+                sendData(e.target.value);
+                e.target.value = '';
+            }
+        });
+        
+        // Prevent form submission on enter
+        mobileInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendData('\r');
+                e.target.value = '';
+            }
+        });
+        
+        // Toolbar functions
+        function typeCommand(cmd) {
+            sendData(cmd + '\r');
+            term.focus();
+        }
+        
+        function sendSpecialKey(key) {
+            const keys = {
+                'Tab': '\t',
+                'Escape': '\x1b',
+                'Control+C': '\x03',
+                'Control+D': '\x04',
+                'Control+Z': '\x1a',
+                'Control+\\': '\x1c',
+                'Up': '\x1b[A',
+                'Down': '\x1b[B',
+                'Right': '\x1b[C',
+                'Left': '\x1b[D'
+            };
+            
+            if (keys[key]) {
+                sendData(keys[key]);
+            }
+            term.focus();
+        }
+        
+        // Initialize connection
+        connect();
+    </script>
+</body>
+</html>

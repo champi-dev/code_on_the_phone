@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal with Auth</title>
+    <style>
+        body {
+            margin: 0;
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+        }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 10px;
+        }
+        button:hover {
+            background: #0f8;
+        }
+        .info {
+            margin: 20px 0;
+            padding: 15px;
+            background: #111;
+            border: 1px solid #0f0;
+            border-radius: 5px;
+        }
+        iframe {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="launcher">
+        <h1>Terminal Launcher</h1>
+        <div class="info">
+            <p>Host: 142.93.249.123</p>
+            <p>Password: cloudterm123</p>
+            <p>Choose connection method:</p>
+        </div>
+        
+        <button onclick="openDirect()">Open Direct Link</button>
+        <button onclick="openWithAuth()">Open with Basic Auth</button>
+        <button onclick="openInIframe()">Open in Iframe</button>
+        
+        <div class="info">
+            <p>If typing only shows 'l', try:</p>
+            <ul style="text-align: left;">
+                <li>Use the Direct Link option</li>
+                <li>Clear browser cache</li>
+                <li>Try a different browser</li>
+                <li>Use incognito/private mode</li>
+            </ul>
+        </div>
+    </div>
+    
+    <iframe id="terminal-frame"></iframe>
+    
+    <script>
+        function openDirect() {
+            // Open ttyd in new tab
+            window.open('http://142.93.249.123:7681', '_blank');
+        }
+        
+        function openWithAuth() {
+            // Try with basic auth in URL (may not work in modern browsers)
+            const authUrl = 'http://:cloudterm123@142.93.249.123:7681';
+            window.open(authUrl, '_blank');
+        }
+        
+        function openInIframe() {
+            // Hide launcher, show iframe
+            document.getElementById('launcher').style.display = 'none';
+            const frame = document.getElementById('terminal-frame');
+            frame.style.display = 'block';
+            frame.src = 'http://142.93.249.123:7681';
+        }
+        
+        // Add keyboard shortcut
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '1') openDirect();
+            if (e.key === '2') openWithAuth();
+            if (e.key === '3') openInIframe();
+        });
+    </script>
+</body>
+</html>

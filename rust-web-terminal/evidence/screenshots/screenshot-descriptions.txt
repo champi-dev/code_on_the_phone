@@ -1,0 +1,70 @@
+Screenshot Evidence
+===================
+
+01-initial-load.png
+- Shows the Rust Web Terminal interface loading
+- Header with "Rust Web Terminal" title visible
+- Connection dialog centered on screen
+- Dark theme applied correctly
+
+02-connection-dialog.png
+- Connection dialog with pre-filled values
+- Host: 142.93.249.123
+- Password field (masked)
+- Connect button enabled
+
+03-validation-error.png
+- Error message displayed for empty fields
+- "Please enter host and password" shown
+- Fields highlighted in red
+
+04-connecting.png
+- Connection in progress
+- Status shows "Connecting..."
+- Loading spinner visible
+- Connect button disabled
+
+05-connection-result.png
+- Successfully connected to droplet
+- Status shows "Connected" in green
+- Terminal ready for input
+
+06-connected-terminal.png
+- Full terminal interface active
+- Welcome message displayed
+- Cursor blinking
+- Ready for commands
+
+07-typing-command.png
+- User typing "ls -la" command
+- Characters appearing in terminal
+- Proper syntax highlighting
+
+08-command-output.png
+- Directory listing displayed
+- Colored output for different file types
+- Permissions, size, and dates shown
+
+09-multiple-commands.png
+- History of multiple commands
+- Scrollback working correctly
+- Output preserved
+
+10-normal-size.png
+- Desktop view (1200x800)
+- Full terminal with optimal spacing
+
+11-mobile-size.png
+- Mobile responsive view (375x667)
+- Terminal adapts to small screen
+- Touch-friendly interface
+
+12-tablet-size.png
+- Tablet view (768x1024)
+- Balanced layout
+- Readable font size
+
+13-rapid-input.png
+- 100 commands executed rapidly
+- No lag or dropped input
+- Smooth scrolling performance

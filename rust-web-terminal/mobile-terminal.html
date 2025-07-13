@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Rust Web Terminal - Mobile</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            touch-action: none;
+        }
+        
+        .header {
+            background: rgba(22, 27, 34, 0.95);
+            padding: 0.75rem;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        
+        .header h1 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #58a6ff;
+        }
+        
+        .connection-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        
+        .connection-status::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        
+        .connection-status.connected {
+            background: rgba(63, 185, 80, 0.2);
+            color: #3fb950;
+        }
+        
+        #terminal-container {
+            flex: 1;
+            background: #0d1117;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #terminal {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .mobile-keyboard-trigger {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            width: 50px;
+            height: 50px;
+            background: #238636;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            touch-action: manipulation;
+        }
+        
+        .mobile-keyboard-trigger svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+        
+        .mobile-input {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            font-size: 16px; /* Prevents zoom on iOS */
+        }
+        
+        .toolbar {
+            background: rgba(22, 27, 34, 0.95);
+            border-top: 1px solid rgba(48, 54, 61, 0.5);
+            padding: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            flex-shrink: 0;
+        }
+        
+        .toolbar button {
+            background: rgba(48, 54, 61, 0.5);
+            border: 1px solid rgba(139, 148, 158, 0.2);
+            color: #c9d1d9;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            white-space: nowrap;
+            touch-action: manipulation;
+            flex-shrink: 0;
+        }
+        
+        .toolbar button:active {
+            background: rgba(88, 166, 255, 0.2);
+            border-color: #58a6ff;
+        }
+        
+        /* Prevent text selection */
+        .xterm-screen {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        /* Better touch scrolling */
+        .xterm-viewport {
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+        }
+        
+        @media (max-height: 500px) {
+            .header {
+                padding: 0.5rem;
+            }
+            .toolbar {
+                padding: 0.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Terminal</h1>
+        <div id="status" class="connection-status connected">Connected</div>
+    </div>
+    
+    <div id="terminal-container">
+        <div id="terminal"></div>
+        <input type="text" class="mobile-input" id="mobile-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    </div>
+    
+    <div class="toolbar">
+        <button onclick="sendCommand('ls -la')">ls</button>
+        <button onclick="sendCommand('pwd')">pwd</button>
+        <button onclick="sendCommand('cd ..')">cd ..</button>
+        <button onclick="sendCommand('clear')">clear</button>
+        <button onclick="sendKey('Tab')">Tab</button>
+        <button onclick="sendKey('Escape')">Esc</button>
+        <button onclick="sendCtrlC()">Ctrl+C</button>
+        <button onclick="sendCommand('exit')">exit</button>
+    </div>
+    
+    <button class="mobile-keyboard-trigger" onclick="toggleKeyboard()">
+        <svg viewBox="0 0 24 24">
+            <path d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z"/>
+        </svg>
+    </button>
+    
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-mobile@0.3.0/lib/xterm-addon-mobile.js"></script>
+    
+    <script>
+        // Initialize terminal with mobile-friendly settings
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: 14,
+            fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+            theme: {
+                background: '#0d1117',
+                foreground: '#c9d1d9',
+                cursor: '#58a6ff',
+                cursorAccent: '#0d1117',
+                selection: 'rgba(88, 166, 255, 0.3)',
+                black: '#484f58',
+                red: '#ff7b72',
+                green: '#3fb950',
+                yellow: '#d29922',
+                blue: '#58a6ff',
+                magenta: '#bc8cff',
+                cyan: '#39c5cf',
+                white: '#b1bac4',
+                brightBlack: '#6e7681',
+                brightRed: '#ffa198',
+                brightGreen: '#56d364',
+                brightYellow: '#e3b341',
+                brightBlue: '#79c0ff',
+                brightMagenta: '#d2a8ff',
+                brightCyan: '#56d4dd',
+                brightWhite: '#f0f6fc'
+            },
+            scrollback: 1000,
+            smoothScrollDuration: 100,
+            allowTransparency: false,
+            windowsMode: false,
+            // Mobile optimizations
+            touchEvents: true,
+            rightClickSelectsWord: false,
+            disableStdin: false
+        });
+
+        // Load addons
+        const fitAddon = new FitAddon.FitAddon();
+        const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+        
+        term.loadAddon(fitAddon);
+        term.loadAddon(webLinksAddon);
+        
+        // Open terminal
+        term.open(document.getElementById('terminal'));
+        
+        // Fit terminal to container
+        fitAddon.fit();
+        
+        // WebSocket connection
+        let ws = null;
+        let inputBuffer = '';
+        let currentLine = '';
+        
+        function connectWebSocket() {
+            const wsUrl = `ws://142.93.249.123:7681/ws`;
+            console.log('Connecting to:', wsUrl);
+            
+            ws = new WebSocket(wsUrl);
+            ws.binaryType = 'arraybuffer';
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                term.writeln('\x1b[32mConnected to droplet\x1b[0m');
+                term.write('$ ');
+            };
+            
+            ws.onmessage = (event) => {
+                if (event.data instanceof ArrayBuffer) {
+                    const decoder = new TextDecoder();
+                    const text = decoder.decode(new Uint8Array(event.data));
+                    term.write(text);
+                } else {
+                    term.write(event.data);
+                }
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                term.writeln('\x1b[31mConnection error\x1b[0m');
+            };
+            
+            ws.onclose = () => {
+                console.log('WebSocket closed');
+                term.writeln('\x1b[31mDisconnected\x1b[0m');
+                document.getElementById('status').className = 'connection-status disconnected';
+                document.getElementById('status').textContent = 'Disconnected';
+                
+                // Auto-reconnect after 3 seconds
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+        
+        // Terminal input handling
+        term.onData((data) => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                // Send to WebSocket
+                const encoder = new TextEncoder();
+                const bytes = encoder.encode(data);
+                ws.send(bytes);
+                
+                // Handle local echo for better UX
+                if (data === '\r') {
+                    currentLine = '';
+                } else if (data === '\x7f') { // Backspace
+                    if (currentLine.length > 0) {
+                        currentLine = currentLine.slice(0, -1);
+                    }
+                } else {
+                    currentLine += data;
+                }
+            } else {
+                // Fallback: local echo mode
+                if (data === '\r') {
+                    term.write('\r\n');
+                    processLocalCommand(inputBuffer);
+                    inputBuffer = '';
+                    term.write('$ ');
+                } else if (data === '\x7f') { // Backspace
+                    if (inputBuffer.length > 0) {
+                        inputBuffer = inputBuffer.slice(0, -1);
+                        term.write('\b \b');
+                    }
+                } else {
+                    inputBuffer += data;
+                    term.write(data);
+                }
+            }
+        });
+        
+        // Mobile input handling
+        const mobileInput = document.getElementById('mobile-input');
+        let isKeyboardOpen = false;
+        
+        function toggleKeyboard() {
+            if (isKeyboardOpen) {
+                mobileInput.blur();
+                isKeyboardOpen = false;
+            } else {
+                mobileInput.focus();
+                isKeyboardOpen = true;
+            }
+        }
+        
+        // Sync mobile input with terminal
+        mobileInput.addEventListener('input', (e) => {
+            const value = e.target.value;
+            if (value.length > 0) {
+                const lastChar = value[value.length - 1];
+                term.write(lastChar);
+                
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    const encoder = new TextEncoder();
+                    ws.send(encoder.encode(lastChar));
+                }
+            }
+        });
+        
+        mobileInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                term.write('\r');
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(new TextEncoder().encode('\r'));
+                }
+                mobileInput.value = '';
+            }
+        });
+        
+        // Toolbar commands
+        function sendCommand(cmd) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const encoder = new TextEncoder();
+                ws.send(encoder.encode(cmd + '\r'));
+            } else {
+                term.write(cmd + '\r\n');
+                processLocalCommand(cmd);
+            }
+        }
+        
+        function sendKey(key) {
+            let sequence = '';
+            switch(key) {
+                case 'Tab': sequence = '\t'; break;
+                case 'Escape': sequence = '\x1b'; break;
+                default: sequence = key;
+            }
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(new TextEncoder().encode(sequence));
+            } else {
+                term.write(sequence);
+            }
+        }
+        
+        function sendCtrlC() {
+            const ctrlC = '\x03';
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(new TextEncoder().encode(ctrlC));
+            } else {
+                term.write('^C\r\n$ ');
+            }
+        }
+        
+        // Local command processing (fallback when not connected)
+        function processLocalCommand(cmd) {
+            const trimmed = cmd.trim();
+            
+            switch(trimmed) {
+                case 'clear':
+                    term.clear();
+                    break;
+                case 'help':
+                    term.writeln('Available commands: ls, pwd, clear, help, exit');
+                    break;
+                case 'ls':
+                    term.writeln('file1.txt  file2.js  directory/');
+                    break;
+                case 'pwd':
+                    term.writeln('/home/user');
+                    break;
+                case 'exit':
+                    term.writeln('Goodbye!');
+                    if (ws) ws.close();
+                    break;
+                default:
+                    if (trimmed) {
+                        term.writeln(`Command not found: ${trimmed}`);
+                    }
+            }
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+            
+            // Send resize to server
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const cols = term.cols;
+                const rows = term.rows;
+                // ttyd resize protocol: type 1 + cols (2 bytes) + rows (2 bytes)
+                const buffer = new ArrayBuffer(5);
+                const view = new DataView(buffer);
+                view.setUint8(0, 1); // resize command
+                view.setUint16(1, cols, false);
+                view.setUint16(3, rows, false);
+                ws.send(buffer);
+            }
+        });
+        
+        // Prevent zoom on double tap
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+        
+        // Focus terminal on tap
+        document.getElementById('terminal').addEventListener('click', () => {
+            term.focus();
+            // Also trigger mobile keyboard
+            if (window.innerWidth <= 768) {
+                mobileInput.focus();
+                isKeyboardOpen = true;
+            }
+        });
+        
+        // Initialize connection
+        connectWebSocket();
+        
+        // Show initial message
+        term.writeln('Rust Web Terminal - Mobile Edition');
+        term.writeln('Connecting to 142.93.249.123...');
+        term.writeln('');
+    </script>
+</body>
+</html>
