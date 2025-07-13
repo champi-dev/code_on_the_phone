@@ -1,7 +1,0 @@
-node_modules/
-coverage/
-*.min.js
-public/js/three.min.js
-sessions/
-*.log
-.env
